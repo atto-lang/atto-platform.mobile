@@ -1,0 +1,19 @@
+name: mobile-abi-host-ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.cc }} -DBUILD_TESTING=ON && cmake --build build --parallel 2
+      - name: Host tests
+        run: ctest --test-dir build --output-on-failure
