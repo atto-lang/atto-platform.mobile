@@ -24,3 +24,7 @@
 ## Security/lifecycle
 
 iOS profile is static AOT only; do not assume runtime JIT or hot-loaded executable code is App Store compliant. App lifecycle, OS permissions and background execution restrictions must be respected. All privileged host APIs require explicit capability grants. Signed binaries are built as part of platform-specific release tooling (not present here).
+
+## Bootstrap hardening
+
+Unit assertions remain active under Release/NDEBUG to ensure the test calls execute. JNI uses GetByteArrayRegion into owned memory instead of holding a pinned JVM array across allocations, and checks/propagates JNI exceptions. Android NDK and device integration remain unverified.

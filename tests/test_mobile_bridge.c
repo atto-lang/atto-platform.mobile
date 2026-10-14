@@ -1,4 +1,7 @@
 #include "ores_mobile_bridge.h"
+#ifdef NDEBUG
+#undef NDEBUG /* evaluate test calls in Release builds */
+#endif
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -43,5 +46,15 @@ int main(void) {
     assert(ores_mobile_dispatch(fail_handler, NULL, input, 3) == ORES_MOBILE_BUFFER_TOO_SMALL);
     assert(ores_mobile_dispatch(ok_handler, &value, input,
                                 ORES_MOBILE_MAX_MESSAGE_BYTES + 1u) == ORES_MOBILE_MESSAGE_TOO_LARGE);
+    {
+        static uint8_t large[ORES_MOBILE_MAX_MESSAGE_BYTES];
+        static uint8_t copied[ORES_MOBILE_MAX_MESSAGE_BYTES];
+        large[0] = 0x5a;
+        large[sizeof large - 1u] = 0xa5;
+        assert(ores_mobile_copy_message(large, sizeof large, copied, sizeof copied, &written) == ORES_MOBILE_OK);
+        assert(written == sizeof large && copied[0] == 0x5a && copied[sizeof copied - 1u] == 0xa5);
+        assert(ores_mobile_copy_message(large, sizeof large, copied, sizeof copied - 1u, &written) == ORES_MOBILE_BUFFER_TOO_SMALL);
+        assert(written == 0);
+    }
     return 0;
 }
