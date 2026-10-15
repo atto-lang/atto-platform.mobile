@@ -7,12 +7,15 @@ permissions:
 jobs:
   host:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         cc: [gcc, clang]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - name: Build
         run: cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.cc }} -DBUILD_TESTING=ON && cmake --build build --parallel 2
       - name: Host tests
