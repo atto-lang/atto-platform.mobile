@@ -25,7 +25,9 @@ typedef ores_mobile_status (*ores_mobile_handler)(
 
 uint32_t ores_mobile_abi_version(void);
 
-/* Copies bytes into caller-owned memory. Zero-length payloads are allowed. */
+/* Copies bytes into caller-owned memory. Zero-length payloads are allowed.
+ * Source/destination may overlap. The written count must not overlap either
+ * byte range; conflicting count pointers are rejected without any writes. */
 ores_mobile_status ores_mobile_copy_message(
     const uint8_t *source, size_t length, uint8_t *destination,
     size_t capacity, size_t *written);

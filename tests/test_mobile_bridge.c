@@ -56,5 +56,17 @@ int main(void) {
         assert(ores_mobile_copy_message(large, sizeof large, copied, sizeof copied - 1u, &written) == ORES_MOBILE_BUFFER_TOO_SMALL);
         assert(written == 0);
     }
+    {
+        union { size_t alignment; uint8_t bytes[32]; } storage;
+        uint8_t before[sizeof storage.bytes];
+        memset(storage.bytes, 0x5a, sizeof storage.bytes);
+        memcpy(before, storage.bytes, sizeof before);
+        assert(ores_mobile_copy_message(storage.bytes, 3, output, sizeof output,
+               (size_t *)(void *)storage.bytes) == ORES_MOBILE_INVALID_ARGUMENT);
+        assert(memcmp(before, storage.bytes, sizeof before) == 0);
+        assert(ores_mobile_copy_message(input, 3, storage.bytes, sizeof storage.bytes,
+               (size_t *)(void *)storage.bytes) == ORES_MOBILE_INVALID_ARGUMENT);
+        assert(memcmp(before, storage.bytes, sizeof before) == 0);
+    }
     return 0;
 }
