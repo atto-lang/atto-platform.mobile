@@ -19,6 +19,10 @@ static ores_mobile_status fail_handler(void *ctx, const uint8_t *data, size_t le
     (void)ctx; (void)data; (void)length;
     return ORES_MOBILE_BUFFER_TOO_SMALL;
 }
+static ores_mobile_status invalid_status_handler(void *ctx, const uint8_t *data, size_t length) {
+    (void)ctx; (void)data; (void)length;
+    return (ores_mobile_status)99;
+}
 int main(void) {
     uint8_t input[] = {11, 22, 33};
     uint8_t output[] = {0, 0, 0};
@@ -44,6 +48,7 @@ int main(void) {
     assert(ores_mobile_dispatch(NULL, NULL, input, 3) == ORES_MOBILE_INVALID_ARGUMENT);
     assert(ores_mobile_dispatch(ok_handler, &value, NULL, 1) == ORES_MOBILE_INVALID_ARGUMENT);
     assert(ores_mobile_dispatch(fail_handler, NULL, input, 3) == ORES_MOBILE_BUFFER_TOO_SMALL);
+    assert(ores_mobile_dispatch(invalid_status_handler, NULL, input, 3) == ORES_MOBILE_INVALID_ARGUMENT);
     assert(ores_mobile_dispatch(ok_handler, &value, input,
                                 ORES_MOBILE_MAX_MESSAGE_BYTES + 1u) == ORES_MOBILE_MESSAGE_TOO_LARGE);
     {
