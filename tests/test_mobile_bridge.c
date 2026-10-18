@@ -37,8 +37,18 @@ int main(void) {
     assert(ores_mobile_copy_message(input, 3, output, 3, NULL) == ORES_MOBILE_INVALID_ARGUMENT);
     assert(ores_mobile_copy_message(NULL, 3, output, 3, &written) == ORES_MOBILE_INVALID_ARGUMENT);
     assert(ores_mobile_copy_message(input, 3, NULL, 3, &written) == ORES_MOBILE_INVALID_ARGUMENT);
-    assert(ores_mobile_copy_message(input, ORES_MOBILE_MAX_MESSAGE_BYTES + 1u,
-                                    output, 3, &written) == ORES_MOBILE_MESSAGE_TOO_LARGE);
+    {
+        /* Give the declared range real storage. A fictitious 64 KiB range
+         * starting at input[3] can cover written under ASan stack layout,
+         * correctly triggering the earlier alias guard instead. */
+        struct {
+            uint8_t bytes[ORES_MOBILE_MAX_MESSAGE_BYTES + 1u];
+            size_t count;
+        } oversized = {{0}, 42};
+        assert(ores_mobile_copy_message(oversized.bytes, sizeof oversized.bytes,
+                    output, sizeof output, &oversized.count) == ORES_MOBILE_MESSAGE_TOO_LARGE);
+        assert(oversized.count == 0);
+    }
     assert(ores_mobile_copy_message(output, 2, output + 1, 2, &written) == ORES_MOBILE_OK);
     assert(output[1] == 11 && output[2] == 22);
     assert(ores_mobile_dispatch(ok_handler, &value, input, 3) == ORES_MOBILE_OK);
