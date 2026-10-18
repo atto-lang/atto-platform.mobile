@@ -8,7 +8,7 @@ for tool in xcrun xcodebuild lipo; do
 done
 test -s "$root/include/ores_mobile_bridge.h"
 test -s "$root/ios/module.modulemap"
-out="${ORES_IOS_OUTPUT_DIR:-$root/build-ios}"
+out="$root/build-ios"
 mkdir -p "$out"
 out="$(cd "$out" && pwd -P)"
 stage="$(mktemp -d "$out/.xcframework-staging.XXXXXXXX")"
