@@ -35,6 +35,8 @@ jobs:
           ${{ matrix.cc }} -std=c11 -Wall -Wextra -Wpedantic -Werror \
             -Iinclude -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" \
             -c android/src/main/cpp/ores_mobile_jni.c -o build/ores_mobile_jni.o
+      - name: Execute real JNI host boundary
+        run: bash scripts/test-jni-host.sh ${{ matrix.cc }}
   sanitizers:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
