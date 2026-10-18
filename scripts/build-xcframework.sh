@@ -27,7 +27,7 @@ build_one() {
     -o "$output/ores_mobile_bridge.o"
   xcrun --sdk "$sdk" ar rcs "$output/libores_mobile_bridge.a" \
     "$output/ores_mobile_bridge.o"
-  lipo -verify_arch "$arch" "$output/libores_mobile_bridge.a"
+  lipo "$output/libores_mobile_bridge.a" -verify_arch "$arch"
 }
 build_one iphoneos arm64 arm64-apple-ios15.0 "$stage/device"
 build_one iphonesimulator arm64 arm64-apple-ios15.0-simulator "$stage/simulator-arm64"
@@ -35,7 +35,7 @@ build_one iphonesimulator x86_64 x86_64-apple-ios15.0-simulator "$stage/simulato
 lipo -create "$stage/simulator-arm64/libores_mobile_bridge.a" \
   "$stage/simulator-x86_64/libores_mobile_bridge.a" \
   -output "$stage/simulator/libores_mobile_bridge.a"
-lipo -verify_arch arm64 x86_64 "$stage/simulator/libores_mobile_bridge.a"
+lipo "$stage/simulator/libores_mobile_bridge.a" -verify_arch arm64 x86_64
 xcodebuild -create-xcframework \
   -library "$stage/device/libores_mobile_bridge.a" -headers "$stage/headers" \
   -library "$stage/simulator/libores_mobile_bridge.a" -headers "$stage/headers" \
