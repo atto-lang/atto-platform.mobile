@@ -1,0 +1,4 @@
+module OresMobileBridge {
+    header "ores_mobile_bridge.h"
+    export *
+}
