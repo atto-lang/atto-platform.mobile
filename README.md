@@ -24,3 +24,11 @@ The current build compiles and tests **only the host bridge C reference**, not t
 ## Upstream integration
 
 Compiler: [oreslang-source.llvm](https://github.com/ores-truffle-oreslang/oreslang-source.llvm). The LLVM source subset currently lacks general actor lowering and runtime parity; do not treat this repository as proof otherwise.
+
+## iOS XCFramework reference target
+
+On macOS with Xcode, `bash scripts/build-xcframework.sh` packages a portable
+C reference bridge for device ARM64 and simulator ARM64/x86_64, including the
+C header and module map. Source-local macOS CI is required to execute this
+build. This is **not** an Oreslang compiler/native actor runtime, not a Swift
+SDK, and not yet tested on an iOS device. See `ios/README.md`.

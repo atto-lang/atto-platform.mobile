@@ -1,7 +1,24 @@
-# iOS native-AOT integration (bootstrap)
+# iOS native-AOT integration (experimental reference ABI)
 
-On a macOS host with Xcode installed, `bash scripts/build-ios.sh` compiles the portable reference C bridge to an iOS ARM64 static library. It does **not** compile Oreslang source code.
+On macOS with Xcode installed:
 
-Future target requirements: ARM64 object emission from the Oreslang LLVM compiler, linked native actor runtime, a module map and Swift package, device/simulator archives, an XCFramework, codesigning and on-device lifecycle tests.
+```sh
+bash scripts/build-xcframework.sh
+```
 
-The iOS deployment profile disallows JIT and arbitrary hot executable-code loading. Data and configuration updates remain separate from application code distribution.
+This builds a **real iOS XCFramework for the portable C reference bridge**:
+device arm64 plus simulator arm64/x86_64. The bundle includes the versioned
+`ores_mobile_bridge.h` C ABI header and Clang `module.modulemap`.
+The exact-head macOS workflow uses Xcode to compile and package the archives,
+validates their architectures and public C symbol presence, and uploads the
+reference-only bundle as a CI artifact.
+
+`scripts/build-ios.sh` remains available for a single device ARM64 archive.
+Neither script compiles Oreslang sources, exports Oreslang actors, publishes
+an App Store-ready SDK, or proves Android/iOS runtime parity. No Swift package,
+Swift actor binding, code signing, real simulator invocation, device UI tests
+or app-store artifact is included.
+
+The iOS deployment profile disallows JIT and arbitrary hot executable-code
+loading. Future target gates include Oreslang LLVM native AOT object emission,
+actor runtime/ownership ABI, Swift integration and physical-device testing.
