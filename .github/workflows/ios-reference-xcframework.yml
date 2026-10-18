@@ -1,0 +1,39 @@
+name: iOS XCFramework reference ABI
+on:
+  pull_request:
+  push:
+    branches: [main, 'feat/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-reference-xcframework:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact Git head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Build real iOS device and dual-arch simulator reference library
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          bash scripts/build-xcframework.sh
+          test -s build-ios/OresMobileBridge.xcframework/Info.plist
+          find build-ios/OresMobileBridge.xcframework -name '*.a' -type f -print
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ios-c-reference-xcframework-only
+          path: build-ios/OresMobileBridge.xcframework/
+          if-no-files-found: error
