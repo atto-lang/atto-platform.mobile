@@ -32,7 +32,8 @@ ores_mobile_status ores_mobile_copy_message(
     const uint8_t *source, size_t length, uint8_t *destination,
     size_t capacity, size_t *written);
 
-/* Calls handler synchronously; does not enqueue, spawn or schedule actors. */
+/* Calls handler synchronously; does not enqueue, spawn or schedule actors.
+ * Callback results outside the declared status enum fail closed as INVALID_ARGUMENT. */
 ores_mobile_status ores_mobile_dispatch(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length);

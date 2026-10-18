@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   host:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -15,8 +15,47 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Verify exact source head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Build
         run: cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.cc }} -DBUILD_TESTING=ON && cmake --build build --parallel 2
       - name: Host tests
         run: ctest --test-dir build --output-on-failure
+      - name: JNI host compile smoke
+        run: |
+          test -f "$JAVA_HOME/include/jni.h"
+          ${{ matrix.cc }} -std=c11 -Wall -Wextra -Wpedantic -Werror \
+            -Iinclude -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" \
+            -c android/src/main/cpp/ores_mobile_jni.c -o build/ores_mobile_jni.o
+  sanitizers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Build with ASan and UBSan
+        run: |
+          cmake -S . -B build-sanitize -DCMAKE_C_COMPILER=clang -DBUILD_TESTING=ON \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-sanitize --parallel 2
+      - name: Sanitizer tests
+        run: ctest --test-dir build-sanitize --output-on-failure
