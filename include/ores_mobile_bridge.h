@@ -38,7 +38,20 @@ ores_mobile_status ores_mobile_dispatch(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length);
 
+/* Copy-isolated synchronous dispatch using caller-owned scratch; no allocation.
+ * Scratch must not overlap the input byte range. The callback borrows the copy
+ * only for its invocation and must not retain it or alter scratch ownership.
+ * Exactly length scratch bytes are scrubbed after every callback result,
+ * including invalid statuses. Rejected calls do not modify scratch or invoke
+ * the handler. Zero-length messages allow NULL data/scratch. Access must be
+ * serialized; this is not an actor mailbox or a hardware isolation boundary. */
+ores_mobile_status ores_mobile_dispatch_copy(
+    ores_mobile_handler handler, void *context,
+    const uint8_t *data, size_t length,
+    uint8_t *scratch, size_t capacity);
+
 #ifdef __cplusplus
 }
 #endif
 #endif
+
