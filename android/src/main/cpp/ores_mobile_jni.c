@@ -15,7 +15,7 @@ static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
     }
 }
 /* Own native bytes only for the synchronous JNI call. All owned copies,
- * including failed JNI region reads, are wiped before returning to malloc.
+ * including failed JNI region reads, are wiped before release or return.
  * The JVM input/output arrays remain owned by Java and are not scrubbed. */
 static void clear_and_release(uint8_t *owned, size_t length, uint8_t *stack_copy) {
     if (owned != NULL) {
