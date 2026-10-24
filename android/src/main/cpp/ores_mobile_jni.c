@@ -54,7 +54,7 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
         }
         (*env)->GetByteArrayRegion(env, input, 0, count, (jbyte *)owned);
         if ((*env)->ExceptionCheck(env)) {
-            free(owned);
+            clear_and_free(owned, (size_t)count);
             return NULL;
         }
     }
