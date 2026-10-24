@@ -61,7 +61,7 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
     status = ores_mobile_copy_message(
         owned, (size_t)count, owned, (size_t)count, &written);
     if (status != ORES_MOBILE_OK) {
-        free(owned);
+        clear_and_free(owned, (size_t)count);
         throw_by_name(env, "java/lang/IllegalStateException", "native ABI copy failed");
         return NULL;
     }
