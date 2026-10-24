@@ -87,7 +87,27 @@ static void test_dispatch_copy(void) {
     assert(ores_mobile_dispatch_copy(copied_handler, &out, scratch, 3, scratch + 3, 3) == ORES_MOBILE_OK);
     assert(out.called == 1 && scratch[0] == 0xff && scratch[3] == 0 && scratch[6] == 0x5a);
 }
+static void test_clear_message(void) {
+    static uint8_t bytes[ORES_MOBILE_MAX_MESSAGE_BYTES + 1u];
+    size_t i;
+    memset(bytes, 0xa5, sizeof bytes);
+    assert(ores_mobile_clear_message(NULL, 0) == ORES_MOBILE_OK);
+    assert(ores_mobile_clear_message(NULL, 1) == ORES_MOBILE_INVALID_ARGUMENT);
+    assert(ores_mobile_clear_message(bytes, sizeof bytes) == ORES_MOBILE_MESSAGE_TOO_LARGE);
+    for (i = 0; i < sizeof bytes; ++i) assert(bytes[i] == 0xa5);
+    assert(ores_mobile_clear_message(bytes, ORES_MOBILE_MAX_MESSAGE_BYTES) == ORES_MOBILE_OK);
+    for (i = 0; i < ORES_MOBILE_MAX_MESSAGE_BYTES; ++i) assert(bytes[i] == 0);
+    assert(bytes[ORES_MOBILE_MAX_MESSAGE_BYTES] == 0xa5);
+    bytes[0] = 0x59;
+    bytes[1] = 0x61;
+    assert(ores_mobile_clear_message(bytes, 0) == ORES_MOBILE_OK);
+    assert(bytes[0] == 0x59 && bytes[1] == 0x61);
+    assert(ores_mobile_clear_message(bytes, 2) == ORES_MOBILE_OK);
+    assert(bytes[0] == 0 && bytes[1] == 0);
+}
+
 int main(void) {
+    test_clear_message();
     test_dispatch_copy();
     uint8_t input[] = {11, 22, 33};
     uint8_t output[] = {0, 0, 0};
