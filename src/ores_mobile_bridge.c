@@ -34,6 +34,18 @@ ores_mobile_status ores_mobile_copy_message(
     return ORES_MOBILE_OK;
 }
 
+ores_mobile_status ores_mobile_clear_message(uint8_t *buffer, size_t length) {
+    volatile uint8_t *erase;
+    size_t i;
+    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES)
+        return ORES_MOBILE_MESSAGE_TOO_LARGE;
+    if (length != 0u && buffer == NULL)
+        return ORES_MOBILE_INVALID_ARGUMENT;
+    erase = buffer;
+    for (i = 0; i < length; ++i) erase[i] = 0u;
+    return ORES_MOBILE_OK;
+}
+
 ores_mobile_status ores_mobile_dispatch(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length) {
