@@ -33,6 +33,20 @@ scratch untouched. The callback may not retain its borrowed pointer; serialize
 access and keep scratch alive until dispatch returns. This adds a host ownership
 boundary, not a queued actor scheduler or device-level memory protection.
 
+## JNI temporary-memory hygiene
+
+The Android JNI `copyMessage` bridge copies a checked (at most 64 KiB)
+Java array into temporary native-owned bytes. Before `free`, it now calls
+`ores_mobile_clear_message` on **every** post-allocation exit path, including
+JNI exceptions and native ABI errors. The bounded wipe uses volatile character
+stores. Host CTest checks zeroization and rejected-argument no-write behavior;
+the Java JNI smoke checks output equality and post-error recovery.
+
+This limits residual bytes in the temporary native allocation. It does **not**
+erase the original/result Java arrays, copy-on-write snapshots, allocator
+metadata, crash dumps, device memory or other copies; it is not an iOS/Android
+actor isolation or secure-erasure certification.
+
 ## Upstream integration
 
 Compiler: [oreslang-source.llvm](https://github.com/ores-truffle-oreslang/oreslang-source.llvm). The LLVM source subset currently lacks general actor lowering and runtime parity; do not treat this repository as proof otherwise.
