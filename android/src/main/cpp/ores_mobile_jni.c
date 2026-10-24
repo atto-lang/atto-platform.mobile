@@ -7,6 +7,8 @@
  * Keep the small synchronous native copy out of malloc; still copy into
  * caller-owned Java result and zero the temporary stack or heap bytes. */
 #define ORES_MOBILE_JNI_STACK_COPY_LIMIT 1024u
+_Static_assert(ORES_MOBILE_JNI_STACK_COPY_LIMIT <= ORES_MOBILE_MAX_MESSAGE_BYTES,
+               "JNI stack-copy limit must fit the public message bound");
 static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
     jclass type = (*env)->FindClass(env, name);
     if (type != NULL) {
@@ -73,8 +75,13 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
         return NULL;
     }
     output = (*env)->NewByteArray(env, (jsize)written);
-    if (output != NULL && written != 0)
+    if (output != NULL && written != 0) {
         (*env)->SetByteArrayRegion(env, output, 0, (jsize)written, (const jbyte *)owned);
+        if ((*env)->ExceptionCheck(env)) {
+            clear_and_release(owned, (size_t)count, stack_copy);
+            return NULL;
+        }
+    }
     clear_and_release(owned, (size_t)count, stack_copy);
-    return output; /* JVM exceptions from allocation or copying propagate. */
+    return output; /* allocation exceptions propagate with NULL. */
 }
