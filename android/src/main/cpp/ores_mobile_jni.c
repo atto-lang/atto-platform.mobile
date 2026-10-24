@@ -11,6 +11,15 @@ static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
         (*env)->DeleteLocalRef(env, type);
     }
 }
+/* Own native bytes only for the synchronous JNI call. All owned copies,
+ * including failed JNI region reads, are wiped before returning to malloc.
+ * The JVM input/output arrays remain owned by Java and are not scrubbed. */
+static void clear_and_free(uint8_t *owned, size_t length) {
+    if (owned != NULL) {
+        (void)ores_mobile_clear_message(owned, length);
+        free(owned);
+    }
+}
 JNIEXPORT jint JNICALL
 Java_dev_oreslang_mobile_OresMobileNative_abiVersion(JNIEnv *env, jobject self) {
     (void)env; (void)self;
