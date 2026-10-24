@@ -68,6 +68,6 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
     output = (*env)->NewByteArray(env, (jsize)written);
     if (output != NULL && written != 0)
         (*env)->SetByteArrayRegion(env, output, 0, (jsize)written, (const jbyte *)owned);
-    free(owned);
+    clear_and_free(owned, (size_t)count);
     return output; /* JVM exceptions from allocation or copying propagate. */
 }
