@@ -1,9 +1,12 @@
-# Specification only; LLVM backend target lowering not yet demonstrated.
+# Experimental compiler-backed Android ARM64 AOT profile.
 profile = "mobile-android-aot"
-triple = "aarch64-linux-android"
+triple = "aarch64-unknown-linux-android24"
 android_abi = "arm64-v8a"
+android_api = 24
 execution = "aot"
 jit = false
 host_abi = "ores_mobile_v1"
+compiler_lowering = "experimental-scalar-ir"
 actors = "not-implemented"
 native_artifact = "shared-library"
+art_execution = "not-yet-verified"
