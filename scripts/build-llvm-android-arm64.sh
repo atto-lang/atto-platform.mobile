@@ -72,11 +72,14 @@ printf 'ORES_MOBILE_ANDROID_IR_SHA256=%s\n' "$ir_sha256"
 "$cc" -std=c11 -Wall -Wextra -Wpedantic -Werror -fPIC -shared   "$root/tests/mobile_guest_jni.c" "$work/guest-android-arm64.o"   -o "$work/libores_mobile_guest_jni.so"
 "$cc" -std=c11 -Wall -Wextra -Wpedantic -Werror   "$root/tests/mobile_guest_android_main.c" "$work/guest-android-arm64.o"   -o "$work/ores_mobile_guest_android"
 
-"$readelf_bin" -h "$work/guest-android-arm64.o" | grep -Eq 'Machine:[[:space:]]+AArch64'
-"$readelf_bin" -h "$work/libores_mobile_guest_jni.so" | grep -Eq 'Machine:[[:space:]]+AArch64'
-"$readelf_bin" -h "$work/ores_mobile_guest_android" | grep -Eq 'Machine:[[:space:]]+AArch64'
-"$readelf_bin" -h "$work/libores_mobile_guest_jni.so" | grep -Eq 'Type:[[:space:]]+DYN'
-"$readelf_bin" -h "$work/ores_mobile_guest_android" | grep -Eq 'Type:[[:space:]]+DYN'
+"$readelf_bin" -h "$work/guest-android-arm64.o" > "$work/guest-object.elf-header"
+"$readelf_bin" -h "$work/libores_mobile_guest_jni.so" > "$work/guest-jni.elf-header"
+"$readelf_bin" -h "$work/ores_mobile_guest_android" > "$work/guest-exe.elf-header"
+grep -Eq 'Machine:[[:space:]]+AArch64' "$work/guest-object.elf-header"
+grep -Eq 'Machine:[[:space:]]+AArch64' "$work/guest-jni.elf-header"
+grep -Eq 'Machine:[[:space:]]+AArch64' "$work/guest-exe.elf-header"
+grep -Eq 'Type:[[:space:]]+DYN' "$work/guest-jni.elf-header"
+grep -Eq 'Type:[[:space:]]+DYN' "$work/guest-exe.elf-header"
 
 object_sha="$(cmake -E sha256sum "$work/guest-android-arm64.o")"; object_sha="${object_sha%% *}"
 jni_sha="$(cmake -E sha256sum "$work/libores_mobile_guest_jni.so")"; jni_sha="${jni_sha%% *}"
