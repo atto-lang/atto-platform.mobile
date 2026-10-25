@@ -11,6 +11,15 @@ static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
         (*env)->DeleteLocalRef(env, type);
     }
 }
+/* Own native bytes only for the synchronous JNI call. All owned copies,
+ * including failed JNI region reads, are wiped before returning to malloc.
+ * The JVM input/output arrays remain owned by Java and are not scrubbed. */
+static void clear_and_free(uint8_t *owned, size_t length) {
+    if (owned != NULL) {
+        (void)ores_mobile_clear_message(owned, length);
+        free(owned);
+    }
+}
 JNIEXPORT jint JNICALL
 Java_dev_oreslang_mobile_OresMobileNative_abiVersion(JNIEnv *env, jobject self) {
     (void)env; (void)self;
@@ -45,20 +54,20 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
         }
         (*env)->GetByteArrayRegion(env, input, 0, count, (jbyte *)owned);
         if ((*env)->ExceptionCheck(env)) {
-            free(owned);
+            clear_and_free(owned, (size_t)count);
             return NULL;
         }
     }
     status = ores_mobile_copy_message(
         owned, (size_t)count, owned, (size_t)count, &written);
     if (status != ORES_MOBILE_OK) {
-        free(owned);
+        clear_and_free(owned, (size_t)count);
         throw_by_name(env, "java/lang/IllegalStateException", "native ABI copy failed");
         return NULL;
     }
     output = (*env)->NewByteArray(env, (jsize)written);
     if (output != NULL && written != 0)
         (*env)->SetByteArrayRegion(env, output, 0, (jsize)written, (const jbyte *)owned);
-    free(owned);
+    clear_and_free(owned, (size_t)count);
     return output; /* JVM exceptions from allocation or copying propagate. */
 }
