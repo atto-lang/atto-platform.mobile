@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build real Oreslang scalar IR into Android ARM64 artifacts with the NDK.
-# This proves NDK retargeting of the current scalar LLVM subset; oreslang-llvmc
-# itself does not yet expose a certified Android target.
+# Requires the compiler's experimental aarch64-unknown-linux-android24 target.
+# This proves scalar AOT/JNI/native artifacts, not actor/runtime parity.
 set -euo pipefail
 umask 077
 
@@ -18,6 +18,10 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 compiler="$1"
 expected_sha256="${2:-}"
 api="${3:-24}"
+if [ "$api" != "24" ]; then
+  echo "Experimental compiler target is pinned to Android API 24" >&2
+  exit 64
+fi
 : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME must point to an Android NDK}"
 command -v cmake >/dev/null || { echo "CMake required." >&2; exit 69; }
 
@@ -57,7 +61,11 @@ test "$pinned_sha256" = "$actual_sha256" || {
 }
 printf 'ORES_MOBILE_ANDROID_COMPILER_SHA256=%s\n' "$pinned_sha256"
 
-"$compiler_exec" --tree-shake --tree-shake-root=mobile_guest_step   --target=host "$root/tests/fixtures/mobile_guest.ores" > "$work/guest.ll"
+"$compiler_exec" --tree-shake --tree-shake-root=mobile_guest_step \
+  --target=aarch64-unknown-linux-android24 \
+  "$root/tests/fixtures/mobile_guest.ores" > "$work/guest.ll"
+grep -F 'target triple = "aarch64-unknown-linux-android24"' "$work/guest.ll" >/dev/null
+grep -F 'target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32"' "$work/guest.ll" >/dev/null
 count="$(grep -Ec '^define[[:space:]].*i64[[:space:]]+@"?mobile_guest_step"?\(i64[^,)]*\)' "$work/guest.ll" || true)"
 if [ "$count" -ne 1 ]; then
   echo "mobile guest symbol has missing/duplicate/wrong i64 ABI: mobile_guest_step" >&2
