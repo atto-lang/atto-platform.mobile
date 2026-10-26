@@ -9,8 +9,10 @@ done
 test -s "$root/include/ores_mobile_bridge.h"
 test -s "$root/ios/module.modulemap"
 out="$root/build-ios"
+test ! -L "$out" || { echo "refusing symlink build-ios directory" >&2; exit 2; }
 mkdir -p "$out"
 out="$(cd "$out" && pwd -P)"
+[[ "$out" == "$root/"* ]] || { echo "build output escaped repository root" >&2; exit 2; }
 stage="$(mktemp -d "$out/.xcframework-staging.XXXXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/headers" "$stage/device" "$stage/simulator-arm64" "$stage/simulator-x86_64" "$stage/simulator"
