@@ -1,0 +1,24 @@
+# Source-free diagnostic only: no checkout, no repository file reads, no network fetches,
+# no source export, and no compiler/runtime/synthesis tests.
+name: Source-local runner allocation canary (metadata only)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/source-local-runner-allocation-canary.yml
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  allocation-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Prove a GitHub-hosted runner executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = 'ores-truffle-oreslang/oreslang-platform.mobile'
+          printf 'RUNNER_ALLOCATED repo=%s runner_os=%s run_id=%s sha=%s\n' \
+            "${GITHUB_REPOSITORY}" "${RUNNER_OS}" "${GITHUB_RUN_ID}" "${GITHUB_SHA}"
+          printf 'SOURCE_CHECKOUT=false SOURCE_EXPORT=false TESTS_EXECUTED=false\n'
