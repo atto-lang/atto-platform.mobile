@@ -78,6 +78,31 @@ class RunnerAdmissionTests(unittest.TestCase):
         d = copy.deepcopy(JOBS); d["jobs"][1]["name"] = d["jobs"][0]["name"]; self.check_reject(jobs=d)
 
 
+    def test_malformed_job_name_as_array(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["name"] = ["allocation-only"]
+        self.check_reject(jobs=d)
+
+    def test_malformed_job_name_as_object(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["name"] = {"name": "allocation-only"}
+        self.check_reject(jobs=d)
+
+    def test_invalid_string_timestamp(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"][0]["started_at"] = "not-a-timestamp"
+        self.check_reject(jobs=d)
+
+    def test_timezone_free_timestamp(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"][0]["started_at"] = "2026-10-29T03:00:00"
+        self.check_reject(jobs=d)
+
+    def test_reversed_timestamp(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"][0]["started_at"] = "2026-10-29T03:00:02Z"
+        self.check_reject(jobs=d)
+
     def test_github_housekeeping_steps(self):
         d = copy.deepcopy(JOBS)
         steps = d["jobs"][0]["steps"]
