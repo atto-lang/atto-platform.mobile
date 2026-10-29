@@ -8,6 +8,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from datetime import datetime
 
 REPO = "ores-truffle-oreslang/oreslang-platform.mobile"
 WORKFLOW = "Source-local runner allocation canary (metadata only)"
@@ -16,6 +17,22 @@ PROOF_STEP = {
     "allocation-only": "Prove a GitHub-hosted runner executed",
     "allocation-macos-only": "Prove a macOS GitHub-hosted runner executed",
 }
+def valid_timestamp_pair(step):
+    """Require real timezone-aware GitHub timestamps in chronological order."""
+    def parse(value):
+        if not isinstance(value, str) or not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo is not None and parsed.utcoffset() is not None else None
+        except ValueError:
+            return None
+
+    started = parse(step.get("started_at"))
+    completed = parse(step.get("completed_at"))
+    return started is not None and completed is not None and started <= completed
+
+
 # GitHub includes its own housekeeping steps in the API for executed jobs.
 # A safe canary contains only optional setup, exactly one proof, optional finish.
 def valid_step_sequence(steps, proof):
@@ -34,8 +51,7 @@ def valid_step_sequence(steps, proof):
         isinstance(step, dict)
         and step.get("status") == "completed"
         and step.get("conclusion") == "success"
-        and isinstance(step.get("started_at"), str) and bool(step["started_at"])
-        and isinstance(step.get("completed_at"), str) and bool(step["completed_at"])
+        and valid_timestamp_pair(step)
         for step in steps
     )
 
@@ -73,7 +89,7 @@ def validate(run, jobs, expected_sha):
             problems.append("malformed job entry")
             continue
         name = job.get("name")
-        if name not in REQUIRED or name in seen:
+        if not isinstance(name, str) or name not in REQUIRED or name in seen:
             problems.append(f"unknown or duplicate job: {name}")
             continue
         seen.add(name)
