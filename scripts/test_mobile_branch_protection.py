@@ -83,6 +83,9 @@ class ProtectionAuditTests(unittest.TestCase):
     def test_fake_check_context(self):
         self.assert_reject(lambda r,b,p: p["required_status_checks"]["checks"][0].update(context="green"))
 
+    def test_malformed_status_check_context(self):
+        self.assert_reject(lambda r,b,p: p["required_status_checks"]["checks"][0].update(context=[]))
+
     def test_duplicate_check(self):
         self.assert_reject(lambda r,b,p: p["required_status_checks"]["checks"].append(p["required_status_checks"]["checks"][0]))
 
