@@ -20,7 +20,7 @@ The following exact-head PR #18 workflow jobs were retried but failed before run
 
 Admin must review **organization** Actions billing/spend caps, hosted/private runner entitlement, Actions allowed policies and repository execution permissions, runner groups and GitHub's job diagnostic banners. The observed status does *not* establish a specific root cause. If settings and billing allow execution yet jobs still fail before admission, supply the exact run/job IDs to GitHub Support.
 
-After correcting the issue, rerun the **source-free** Linux/macOS canary from PR #17. Require `runner_id > 0`, `steps` with a completed proof step, success and correct exact source head and run attempt; no checkout or external source transfer. The read-only `scripts/check-mobile-runner-admission.py` verifies saved job metadata (with independently authenticated API responses). A positive canary proves allocation only.
+After correcting the issue, rerun the **source-free** Linux/macOS canary from PR #17. Require `runner_id > 0`, `steps` with a completed proof step, success and correct exact source head and run attempt; no checkout or external source transfer. The read-only `scripts/check_mobile_runner_admission.py` verifies saved job metadata (with independently authenticated API responses). A positive canary proves allocation only.
 
 ## 2. Enforce protected `main` (admin; no export before independent verification)
 
