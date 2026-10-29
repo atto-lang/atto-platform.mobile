@@ -63,6 +63,9 @@ def validate(repo, branch, protection, expected_main_sha):
                     problems.append("malformed status check")
                     continue
                 context = item.get("context")
+                if not isinstance(context, str):
+                    problems.append("malformed status check context")
+                    continue
                 if context in REQUIRED_CHECKS:
                     if context in matched:
                         problems.append("duplicate required status check: " + context)
