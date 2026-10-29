@@ -24,6 +24,12 @@ After correcting the issue, rerun the **source-free** Linux/macOS canary from PR
 
 ## 2. Enforce protected `main` (admin; no export before independent verification)
 
+### Check subscription eligibility before attempting protection
+
+As of 2026-10-29, authenticated `GET /repos/ores-truffle-oreslang/oreslang-platform.mobile/rulesets?includes_parents=true` returned **403** with GitHub's message `Upgrade to GitHub Pro or make this repository public to enable this feature.` The repository owner is an **organization**, so the administrator should check **GitHub Team or Enterprise plan eligibility** for private repository protections; GitHub Pro applies to personal accounts and the error text is generic. This does not independently prove the current plan or the reason for source-org Actions admission failures. GitHub documents private-repository branch protection and rulesets as paid-plan features. **Do not make the repository public** to bypass a plan gate. If the organization lacks eligible features, correct subscription/entitlement before attempting protection, and preserve the private-source export hold.
+
+Independently check current plan in the GitHub organization Billing and licensing UI (or with a properly authorized administrative API), then separately check Actions budget and hosted runner settings. The connector's `GET /branches/main/protection` returns **403 Resource not accessible by integration**, which by itself does not distinguish integration permissions from plan eligibility. The two 403s mean different things and must not be conflated.
+
 Using GitHub UI / a privileged authenticated `gh` CLI, configure:
 - Require PRs, at least one approving review and CODEOWNER review; stale approval dismissal.
 - Enforce administrator rules; zero reviewed user/team/app PR-review bypasses; disable force push and branch deletion.
