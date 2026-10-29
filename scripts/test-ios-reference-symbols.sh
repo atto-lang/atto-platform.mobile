@@ -42,8 +42,23 @@ done
 grep -Fvx _ores_mobile_dispatch <<<"$all_symbols" >"$tmp/symbols/device.a.txt"
 expect_failure 'dispatch-prefix confusion' bash "$gate" "${archives[@]}"
 printf '%s\n' "$all_symbols" >"$tmp/symbols/device.a.txt"
+# ABI v1 is a closed public namespace. A present-but-duplicated public
+# definition, or an extra public API, must fail on every thin architecture.
+for index in 0 1 2; do
+  archive="${archives[$index]}"
+  symbol_file="$tmp/symbols/$(basename "$archive").txt"
+  printf '%s\n' "$all_symbols" _ores_mobile_dispatch >"$symbol_file"
+  expect_failure "duplicate exported ABI symbol in $(basename "$archive")" bash "$gate" "${archives[@]}"
+  printf '%s\n' "$all_symbols" _ores_mobile_unreviewed >"$symbol_file"
+  expect_failure "unexpected ABI export in $(basename "$archive")" bash "$gate" "${archives[@]}"
+  printf '%s\n' "$all_symbols" >"$symbol_file"
+done
+# Unrelated external symbols are allowed; only _ores_mobile_* is frozen.
+printf '%s\n' "$all_symbols" _other_toolchain_helper >"$tmp/symbols/device.a.txt"
+bash "$gate" "${archives[@]}" || { echo 'unrelated symbol falsely rejected' >&2; exit 1; }
+printf '%s\n' "$all_symbols" >"$tmp/symbols/device.a.txt"
 MOCK_NM_FAIL=1 expect_failure 'nm subprocess failure' bash "$gate" "${archives[@]}"
 rm -f "${archives[2]}"
 expect_failure 'missing simulator archive' bash "$gate" "${archives[@]}"
 expect_failure 'wrong archive count' bash "$gate" "${archives[0]}" "${archives[1]}"
-echo 'PASS: complete C ABI v1 symbol gate and 19 deterministic rejections (synthetic nm; not iOS execution)'
+echo 'PASS: complete C ABI v1 symbol gate and 25 deterministic rejections (synthetic nm; not iOS execution)'
