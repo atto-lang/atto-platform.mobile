@@ -2,7 +2,7 @@
 """Offline negative matrix for the source-free GitHub runner metadata verifier."""
 import copy
 import unittest
-from check_mobile_runner_admission import validate, REPO, WORKFLOW
+from check_mobile_runner_admission import validate, REPO, WORKFLOW, PROOF_STEP
 
 SHA = "a" * 40
 RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO},
@@ -10,9 +10,10 @@ RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name":
 
 
 def job(name, label):
-    return {"id": 200, "run_id": 81, "run_attempt": 2, "name": name,
+    return {"id": 200 if name == "allocation-only" else 201,
+            "run_id": 81, "run_attempt": 2, "name": name,
             "runner_id": 123456, "labels": [label], "status": "completed", "conclusion": "success",
-            "steps": [{"name": "Prove runner", "status": "completed", "conclusion": "success",
+            "steps": [{"name": PROOF_STEP[name], "status": "completed", "conclusion": "success",
                        "started_at": "2026-10-29T03:00:00Z", "completed_at": "2026-10-29T03:00:01Z"}]}
 
 
@@ -75,6 +76,63 @@ class RunnerAdmissionTests(unittest.TestCase):
 
     def test_duplicate_job(self):
         d = copy.deepcopy(JOBS); d["jobs"][1]["name"] = d["jobs"][0]["name"]; self.check_reject(jobs=d)
+
+
+    def test_github_housekeeping_steps(self):
+        d = copy.deepcopy(JOBS)
+        steps = d["jobs"][0]["steps"]
+        setup = copy.deepcopy(steps[0]); setup["name"] = "Set up job"
+        finish = copy.deepcopy(steps[0]); finish["name"] = "Complete job"
+        d["jobs"][0]["steps"] = [setup, steps[0], finish]
+        self.assertEqual(validate(RUN, d, SHA), [])
+
+    def test_substituted_proof_step(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"][0]["name"] = "Checkout private source"
+        self.check_reject(jobs=d)
+
+    def test_extra_unexpected_step(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"].append(copy.deepcopy(d["jobs"][0]["steps"][0]))
+        self.check_reject(jobs=d)
+
+    def test_wrong_housekeeping_order(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][1]["steps"].insert(0, {**d["jobs"][1]["steps"][0], "name": "Complete job"})
+        self.check_reject(jobs=d)
+
+    def test_duplicate_job_ids(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][1]["id"] = d["jobs"][0]["id"]
+        self.check_reject(jobs=d)
+
+    def test_bool_runner_not_valid_id(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["runner_id"] = True
+        self.check_reject(jobs=d)
+
+    def test_bool_job_id_not_valid(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][1]["id"] = True
+        self.check_reject(jobs=d)
+
+    def test_unstructured_repository(self):
+        d = copy.deepcopy(RUN)
+        d["repository"] = ["not", "a", "repository", "object"]
+        self.check_reject(run=d)
+
+    def test_unstructured_step_timestamp(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"][0]["started_at"] = 123
+        self.check_reject(jobs=d)
+
+    def test_github_housekeeping_step_failed(self):
+        d = copy.deepcopy(JOBS)
+        step = copy.deepcopy(d["jobs"][0]["steps"][0])
+        step["name"] = "Set up job"
+        step["conclusion"] = "failure"
+        d["jobs"][0]["steps"].insert(0, step)
+        self.check_reject(jobs=d)
 
 
 if __name__ == "__main__":
