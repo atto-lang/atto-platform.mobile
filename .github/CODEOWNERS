@@ -1,0 +1,5 @@
+# Repository-wide platform ownership.
+# This file is declarative only until main branch protection/rulesets require
+# CODEOWNER review. Private-source export governance still requires a genuinely
+# independent reviewer in addition to operator-controlled accounts.
+* @ORESoftware
