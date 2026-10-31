@@ -118,6 +118,51 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.expected = git(self.root, "rev-parse", "HEAD")
         self.assertEqual(self.run_checker().returncode, 0)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "needs case-sensitive POSIX test filesystem")
+    def test_case_colliding_parent_directories(self):
+        (self.root / "Upper").mkdir()
+        (self.root / "upper").mkdir()
+        (self.root / "Upper" / "first.txt").write_text("a\n")
+        (self.root / "upper" / "second.txt").write_text("b\n")
+        git(self.root, "add", "Upper", "upper")
+        git(self.root, "commit", "-qm", "parent case collision")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows reserved names are unavailable on some hosts")
+    def test_windows_reserved_device_name(self):
+        (self.root / "CON.txt").write_text("reserved\n")
+        git(self.root, "add", "CON.txt")
+        git(self.root, "commit", "-qm", "reserved name")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "host filesystem naming semantics differ")
+    def test_trailing_dot_path(self):
+        (self.root / "trailing.").write_text("reserved\n")
+        git(self.root, "add", "trailing.")
+        git(self.root, "commit", "-qm", "trailing dot")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "host Unicode normalization differs")
+    def test_unicode_non_nfc_path(self):
+        filename = "cafe\u0301.txt"
+        (self.root / filename).write_text("decomposed\n")
+        git(self.root, "add", filename)
+        git(self.root, "commit", "-qm", "non-NFC path")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "needs case-sensitive POSIX test filesystem")
+    def test_unicode_casefold_collision(self):
+        (self.root / "\u00c4.txt").write_text("upper\n")
+        (self.root / "\u00e4.txt").write_text("lower\n")
+        git(self.root, "add", "\u00c4.txt", "\u00e4.txt")
+        git(self.root, "commit", "-qm", "Unicode casefold collision")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
         git(self.root, "add", ".gitignore")
