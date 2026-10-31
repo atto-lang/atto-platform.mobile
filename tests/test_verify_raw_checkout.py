@@ -83,6 +83,41 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.assertEqual(self.run_checker().returncode, 0)
         self.assertFalse(marker.exists(), "preflight executed a clean filter")
 
+    def test_executable_mode_tamper(self):
+        (self.root / "tracked.txt").chmod(0o755)
+        git(self.root, "config", "core.filemode", "false")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_case_colliding_tracked_paths(self):
+        (self.root / "Tracked.txt").write_text("different\n")
+        git(self.root, "add", "Tracked.txt")
+        git(self.root, "commit", "-qm", "add mixed-case alias")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_symlinked_parent_directory(self):
+        (self.root / "inside").mkdir()
+        (self.root / "inside" / "value.txt").write_text("nested\n")
+        git(self.root, "add", "inside/value.txt")
+        git(self.root, "commit", "-qm", "nested")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        original = self.root / "inside"
+        moved = self.root / "outside"
+        original.rename(moved)
+        original.symlink_to(moved, target_is_directory=True)
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_deleted_tracked_file(self):
+        (self.root / "tracked.txt").unlink()
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_binary_file_exact_bytes(self):
+        (self.root / "payload.bin").write_bytes(bytes(range(256)))
+        git(self.root, "add", "payload.bin")
+        git(self.root, "commit", "-qm", "binary")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertEqual(self.run_checker().returncode, 0)
+
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
         git(self.root, "add", ".gitignore")
