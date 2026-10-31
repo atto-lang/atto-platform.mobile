@@ -24,7 +24,17 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
-          test -z "$(git status --porcelain --untracked-files=all)"
+          python3 scripts/verify_raw_checkout.py
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -q
+      - name: Verify source-local admission and integrated CI gate regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_mobile_runner_admission.py
+          python3 scripts/test_mobile_branch_protection.py
+          python3 scripts/test_mobile_ci_integration.py
+      - name: Verify iOS C ABI symbol admission logic (synthetic, no Xcode)
+        run: bash scripts/test-ios-reference-symbols.sh
       - name: Build
         run: cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.cc }} -DBUILD_TESTING=ON && cmake --build build --parallel 2
       - name: Host tests
@@ -52,12 +62,59 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
-          test -z "$(git status --porcelain --untracked-files=all)"
+          python3 scripts/verify_raw_checkout.py
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -q
       - name: Build with ASan and UBSan
         run: |
           cmake -S . -B build-sanitize -DCMAKE_C_COMPILER=clang -DBUILD_TESTING=ON \
-            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           cmake --build build-sanitize --parallel 2
       - name: Sanitizer tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ctest --test-dir build-sanitize --output-on-failure
+
+  android-ndk-cross-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/verify_raw_checkout.py
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -q
+      - name: Cross-build real JNI shared library with Android NDK
+        shell: bash
+        env:
+          ANDROID_ABI_NAME: ${{ matrix.abi }}
+        run: |
+          set -euo pipefail
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}}"
+          test -n "$NDK"
+          test -f "$NDK/build/cmake/android.toolchain.cmake"
+          cmake -S android -B "build-android-${ANDROID_ABI_NAME}" \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI="$ANDROID_ABI_NAME" \
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "build-android-${ANDROID_ABI_NAME}" --parallel 2
+          test -s "build-android-${ANDROID_ABI_NAME}/liboresmobile_jni.so"
+          file "build-android-${ANDROID_ABI_NAME}/liboresmobile_jni.so"
+      - name: Scope
+        run: |
+          echo "ANDROID_NDK_CROSS_BUILD_PASS abi=${{ matrix.abi }}"
+          echo "This proves native cross-compilation only; no emulator/device execution is claimed."
