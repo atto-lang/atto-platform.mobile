@@ -35,6 +35,7 @@ def safe_path(path):
 
 def tree_entries():
     result = {}
+    folded_paths = set()
     for row in git("ls-tree", "-r", "-z", "HEAD").split(b"\0"):
         if not row:
             continue
@@ -42,8 +43,10 @@ def tree_entries():
         mode, kind, oid = metadata.split()
         if kind != b"blob" or mode not in (b"100644", b"100755") or not OID.fullmatch(oid):
             raise ValueError("unsupported tracked object")
-        if not safe_path(path) or path in result:
-            raise ValueError("unsafe or duplicate tracked path")
+        folded = path.lower()
+        if not safe_path(path) or path in result or folded in folded_paths:
+            raise ValueError("unsafe, duplicate or case-colliding tracked path")
+        folded_paths.add(folded)
         result[path] = (mode, oid)
     if not result or len(result) > MAX_FILES:
         raise ValueError("unexpected tracked file count")
