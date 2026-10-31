@@ -163,6 +163,45 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.expected = git(self.root, "rev-parse", "HEAD")
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS device names require case-sensitive fixture")
+    def test_windows_superscript_com_device_name(self):
+        (self.root / "COM\u00b9.txt").write_text("device\n")
+        git(self.root, "add", "COM\u00b9.txt")
+        git(self.root, "commit", "-qm", "superscript com")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS device names require case-sensitive fixture")
+    def test_windows_superscript_lpt_device_name(self):
+        (self.root / "LPT\u00b2.txt").write_text("device\n")
+        git(self.root, "add", "LPT\u00b2.txt")
+        git(self.root, "commit", "-qm", "superscript lpt")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
+    def test_windows_conin_device_name(self):
+        (self.root / "CONIN$").write_text("device\n")
+        git(self.root, "add", "CONIN$")
+        git(self.root, "commit", "-qm", "console input")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
+    def test_windows_conout_device_name(self):
+        (self.root / "CONOUT$").write_text("device\n")
+        git(self.root, "add", "CONOUT$")
+        git(self.root, "commit", "-qm", "console output")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_nonreserved_windows_port_name(self):
+        (self.root / "COM10.txt").write_text("ordinary\n")
+        git(self.root, "add", "COM10.txt")
+        git(self.root, "commit", "-qm", "ordinary name")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertEqual(self.run_checker().returncode, 0)
+
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
         git(self.root, "add", ".gitignore")
