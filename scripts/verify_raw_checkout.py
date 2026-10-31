@@ -8,6 +8,7 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import unicodedata
 import stat
 import subprocess
 import sys
@@ -25,17 +26,29 @@ def git(*args):
     )
 
 
+WIN_RESERVED = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
+
+
 def safe_path(path):
     if not path or path.startswith(b"/") or b"\\" in path:
         return False
-    parts = path.split(b"/")
-    return all(p not in (b"", b".", b"..") and p.lower() != b".git"
-               for p in parts)
-
+    try:
+        name = path.decode("utf-8", "strict")
+    except UnicodeDecodeError:
+        return False
+    if unicodedata.normalize("NFC", name) != name:
+        return False
+    for part in name.split("/"):
+        if (part in ("", ".", "..") or part.lower() == ".git" or
+            part.endswith((" ", ".")) or WIN_RESERVED.match(part) or
+            any(ord(ch) < 32 or ord(ch) == 127 or ch in '<>:"\\|?*' for ch in part)):
+            return False
+    return True
 
 def tree_entries():
     result = {}
     folded_paths = set()
+    folded_prefixes = {}
     for row in git("ls-tree", "-r", "-z", "HEAD").split(b"\0"):
         if not row:
             continue
@@ -43,9 +56,21 @@ def tree_entries():
         mode, kind, oid = metadata.split()
         if kind != b"blob" or mode not in (b"100644", b"100755") or not OID.fullmatch(oid):
             raise ValueError("unsupported tracked object")
-        folded = path.lower()
-        if not safe_path(path) or path in result or folded in folded_paths:
-            raise ValueError("unsafe, duplicate or case-colliding tracked path")
+        if not safe_path(path):
+            raise ValueError("nonportable tracked path")
+        name = path.decode("utf-8")
+        folded = name.casefold()
+        if path in result or folded in folded_paths:
+            raise ValueError("duplicate or case-colliding tracked path")
+        prefix = []
+        for piece in name.split("/"):
+            prefix.append(piece)
+            key = tuple(component.casefold() for component in prefix)
+            spelled = tuple(prefix)
+            old_spelling = folded_prefixes.get(key)
+            if old_spelling is not None and old_spelling != spelled:
+                raise ValueError("case-colliding parent path component")
+            folded_prefixes[key] = spelled
         folded_paths.add(folded)
         result[path] = (mode, oid)
     if not result or len(result) > MAX_FILES:
