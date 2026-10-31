@@ -26,7 +26,7 @@ def git(*args):
     )
 
 
-WIN_RESERVED = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
+WIN_RESERVED = re.compile(r"^(?:CONIN\$|CONOUT\$|CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)", re.I)
 
 
 def safe_path(path):
