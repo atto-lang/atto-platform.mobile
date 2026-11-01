@@ -247,6 +247,32 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         git(self.root, "update-ref", "HEAD", pinned)
         self.assertNotEqual(self.run_checker(extra_env={"GIT_REPLACE_REF_BASE": "refs/test-substitution"}).returncode, 0)
 
+    def test_packed_git_replace_ref_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("replacement candidate\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "candidate")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "update-ref", "HEAD", pinned)
+        git(self.root, "reset", "--hard", pinned)
+        git(self.root, "replace", substitute, pinned)
+        git(self.root, "pack-refs", "--all", "--prune")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_tracked_git_symlink_object_is_rejected(self):
+        (self.root / "linked.txt").symlink_to("tracked.txt")
+        git(self.root, "add", "linked.txt")
+        git(self.root, "commit", "-qm", "tracked symlink")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_tracked_gitlink_is_rejected(self):
+        git(self.root, "update-index", "--add", "--cacheinfo",
+            "160000," + self.expected + ",submodule")
+        git(self.root, "commit", "-qm", "tracked gitlink")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
         git(self.root, "add", ".gitignore")
