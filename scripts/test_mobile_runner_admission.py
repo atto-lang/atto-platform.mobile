@@ -160,5 +160,27 @@ class RunnerAdmissionTests(unittest.TestCase):
         self.check_reject(jobs=d)
 
 
+    def test_boolean_run_and_attempt_ids_are_never_valid_receipts(self):
+        for key in ("id", "run_attempt"):
+            d = copy.deepcopy(RUN)
+            d[key] = True
+            with self.subTest(key=key):
+                self.check_reject(run=d)
+
+    def test_empty_and_nonlist_runner_labels_fail_closed(self):
+        for labels in ([], None, "ubuntu-24.04", ["macos-15"]):
+            d = copy.deepcopy(JOBS)
+            d["jobs"][0]["labels"] = labels
+            with self.subTest(labels=repr(labels)):
+                self.check_reject(jobs=d)
+
+    def test_zero_step_job_cannot_be_replaced_by_successful_conclusion(self):
+        d = copy.deepcopy(JOBS)
+        d["jobs"][0]["steps"] = None
+        d["jobs"][0]["status"] = "completed"
+        d["jobs"][0]["conclusion"] = "success"
+        self.check_reject(jobs=d)
+
+
 if __name__ == "__main__":
     unittest.main()
