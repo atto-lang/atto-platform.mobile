@@ -28,8 +28,9 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         git(self.root, "commit", "-qm", "base")
         self.expected = git(self.root, "rev-parse", "HEAD")
 
-    def run_checker(self, expected=None):
+    def run_checker(self, expected=None, extra_env=None):
         env = dict(os.environ, EXPECTED_SHA=expected or self.expected)
+        env.update(extra_env or {})
         return subprocess.run(
             [sys.executable, str(SCRIPT)], cwd=self.root, env=env,
             text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -201,6 +202,50 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         git(self.root, "commit", "-qm", "ordinary name")
         self.expected = git(self.root, "rev-parse", "HEAD")
         self.assertEqual(self.run_checker().returncode, 0)
+
+    def test_active_git_replace_cannot_substitute_head_tree(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "replace", pinned, substitute)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"), pinned)
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_dormant_git_replace_ref_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("another commit\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "update-ref", "HEAD", pinned)
+        git(self.root, "reset", "--hard", pinned)
+        git(self.root, "replace", substitute, pinned)
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_untrusted_no_replace_env_cannot_bypass(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "replace", pinned, substitute)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_NO_REPLACE_OBJECTS": "0"}).returncode, 0)
+
+    def test_custom_git_replace_namespace_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        env = dict(os.environ, GIT_REPLACE_REF_BASE="refs/test-substitution")
+        subprocess.check_call(["git", "-C", str(self.root), "replace", pinned, substitute],
+                              env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_REPLACE_REF_BASE": "refs/test-substitution"}).returncode, 0)
 
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
