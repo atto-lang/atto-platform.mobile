@@ -104,3 +104,48 @@ fn compiler_rejects_unknown_symbol() {
 fn compiler_rejects_type_mismatch() {
     compile_expect(FIXTURES[2], false);
 }
+
+#[test]
+fn unlisted_and_traversal_fixtures_are_rejected() {
+    for name in ["", "../positive-arithmetic.ores", "/tmp/positive-arithmetic.ores",
+                 "positive-arithmetic.ores/..", "missing.ores"] {
+        assert!(fixture_path(name).is_err(), "admitted unlisted fixture {name}");
+    }
+}
+#[test]
+fn repo_directory_is_not_a_compiler_driver() {
+    let root = repo_root();
+    assert!(driver_path(root.to_str()).is_err());
+}
+#[test]
+fn fixtures_are_unique_and_nonempty_source() {
+    let mut content = std::collections::BTreeSet::new();
+    for name in FIXTURES {
+        let source = fs::read_to_string(fixture_path(name).unwrap()).unwrap();
+        assert!(source.contains("main()"), "fixture lacks main: {name}");
+        assert!(content.insert(source), "duplicate fixture body: {name}");
+    }
+}
+#[test]
+fn positive_and_negative_source_classes_are_distinct() {
+    let p = fs::read_to_string(fixture_path(FIXTURES[0]).unwrap()).unwrap();
+    let unknown = fs::read_to_string(fixture_path(FIXTURES[1]).unwrap()).unwrap();
+    let mismatch = fs::read_to_string(fixture_path(FIXTURES[2]).unwrap()).unwrap();
+    assert!(p.contains("return stable_sum"));
+    assert!(unknown.contains("compiler_missing_identifier"));
+    assert!(mismatch.contains("return \"not an int\""));
+}
+#[cfg(unix)]
+#[test]
+fn symlink_compiler_driver_is_rejected() {
+    use std::os::unix::fs::symlink;
+    let directory = std::env::temp_dir().join(format!(
+        "oreslang-compiler-driver-admission-{}", std::process::id()
+    ));
+    fs::create_dir(&directory).unwrap();
+    let alias = directory.join("driver-link");
+    symlink(fixture_path(FIXTURES[0]).unwrap(), &alias).unwrap();
+    assert!(driver_path(alias.to_str()).is_err());
+    fs::remove_file(alias).unwrap();
+    fs::remove_dir(directory).unwrap();
+}
