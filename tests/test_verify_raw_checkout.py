@@ -273,6 +273,67 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.expected = git(self.root, "rev-parse", "HEAD")
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+    def test_external_index_substitution_is_rejected(self):
+        # The worktree is trusted but the REAL .git/index has an unreviewed staged blob.
+        # A synthetic clean index outside the checkout must never replace it.
+        import shutil
+        with tempfile.TemporaryDirectory() as outside:
+            alternate = Path(outside) / "clean-index"
+            shutil.copyfile(self.root / ".git/index", alternate)
+            (self.root / "tracked.txt").write_text("malicious staged content\n")
+            git(self.root, "add", "tracked.txt")
+            (self.root / "tracked.txt").write_text("trusted\n")
+            baseline = self.run_checker()
+            self.assertNotEqual(baseline.returncode, 0)
+            spoof = self.run_checker(extra_env={"GIT_INDEX_FILE": str(alternate)})
+            self.assertNotEqual(spoof.returncode, 0,
+                "GIT_INDEX_FILE substituted a clean index, hiding staged tampering")
+
+    def test_git_dir_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_DIR": str(self.root / ".git")}).returncode, 0)
+
+    def test_git_work_tree_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_WORK_TREE": str(self.root)}).returncode, 0)
+
+    def test_git_common_dir_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_COMMON_DIR": str(self.root / ".git")}).returncode, 0)
+
+    def test_git_object_directory_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_OBJECT_DIRECTORY": str(self.root / ".git/objects")}).returncode, 0)
+
+    def test_git_config_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_CONFIG_COUNT": "0"}).returncode, 0)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_CONFIG_PARAMETERS": "'core.filemode=false'"}).returncode, 0)
+
+    def test_git_namespace_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_NAMESPACE": "hidden"}).returncode, 0)
+
+    def test_harmless_no_replace_override_is_accepted(self):
+        self.assertEqual(self.run_checker(extra_env={"GIT_NO_REPLACE_OBJECTS": "0"}).returncode, 0)
+
+    def test_git_alternate_object_directory_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(self.root / ".git/objects")
+        }).returncode, 0)
+
+    def test_git_config_global_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_CONFIG_GLOBAL": str(self.root / ".git/config")
+        }).returncode, 0)
+
+    def test_git_shallow_file_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_SHALLOW_FILE": str(self.root / ".git/shallow")
+        }).returncode, 0)
+
+    def test_git_ceiling_directories_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_CEILING_DIRECTORIES": str(self.root.parent)
+        }).returncode, 0)
+
+    def test_harmless_git_terminal_prompt_setting_is_accepted(self):
+        self.assertEqual(self.run_checker(extra_env={"GIT_TERMINAL_PROMPT": "0"}).returncode, 0)
+
     def test_untracked_ignored(self):
         (self.root / ".gitignore").write_text("ignored.bin\n")
         git(self.root, "add", ".gitignore")
