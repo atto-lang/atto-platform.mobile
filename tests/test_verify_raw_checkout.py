@@ -88,6 +88,7 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         git(self.root, "config", "core.filemode", "false")
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires case-sensitive filesystem to commit both aliases")
     def test_case_colliding_tracked_paths(self):
         (self.root / "Tracked.txt").write_text("different\n")
         git(self.root, "add", "Tracked.txt")
