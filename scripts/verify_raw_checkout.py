@@ -20,9 +20,10 @@ MAX_TOTAL = 64 * 1024 * 1024
 
 
 def git(*args):
+    env = dict(os.environ, GIT_NO_REPLACE_OBJECTS="1")
     return subprocess.check_output(
         ["git", "-c", "core.fsmonitor=false", "--no-optional-locks", *args],
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, env=env,
     )
 
 
@@ -139,6 +140,10 @@ def raw_contents(root_fd, path, mode):
 def verify(expected):
     if not re.fullmatch(r"[0-9a-f]{40}", expected or ""):
         raise ValueError("missing or invalid full expected source SHA")
+    if os.environ.get("GIT_REPLACE_REF_BASE"):
+        raise ValueError("custom Git replacement-ref namespace is forbidden")
+    if git("for-each-ref", "--format=%(refname)", "refs/replace").strip():
+        raise ValueError("Git replace refs are forbidden in source checkout")
     if git("rev-parse", "--show-object-format").strip() != b"sha1":
         raise ValueError("unsupported Git object format")
     if git("rev-parse", "HEAD").strip().decode("ascii") != expected:
