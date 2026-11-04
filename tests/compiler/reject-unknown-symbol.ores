@@ -1,0 +1,3 @@
+pub fnc main(): int {
+  return compiler_missing_identifier;
+}
