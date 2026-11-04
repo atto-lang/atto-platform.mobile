@@ -1,5 +1,6 @@
 #include "atto_xp_ui.h"
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <string.h>
 
 typedef struct {
@@ -7,6 +8,8 @@ typedef struct {
     int live;
     int64_t counter;
 } ui_slot;
+/* Process-wide scene epochs MUST NOT be reused across scenes or closes. */
+static _Atomic uint32_t last_scene_epoch = 0;
 struct atto_xp_ui_state {
     uint64_t app, scene, owner, revision;
     uint32_t epoch;
@@ -37,6 +40,15 @@ atto_xp_ui_status atto_xp_ui_open(atto_xp_ui_state **out, uint64_t app, uint64_t
     if (!check(context)) return ATTO_XP_UI_WRONG_THREAD;
     state = (atto_xp_ui_state *)calloc(1, sizeof *state);
     if (!state) return ATTO_XP_UI_QUOTA;
+    /* A stale handle from scene A may otherwise alias scene B if the caller
+     * reuses its 24-bit epoch. Reserve a process-wide increasing epoch; never
+     * recycle it, even after close/free. Exhaustion fails closed. */
+    uint32_t prior = atomic_load_explicit(&last_scene_epoch, memory_order_relaxed);
+    for (;;) {
+        if (epoch <= prior) { free(state); return ATTO_XP_UI_STALE; }
+        if (atomic_compare_exchange_weak_explicit(&last_scene_epoch, &prior, epoch,
+                memory_order_relaxed, memory_order_relaxed)) break;
+    }
     state->app = app; state->scene = scene; state->owner = owner;
     state->epoch = epoch; state->check = check; state->context = context;
     *out = state;
