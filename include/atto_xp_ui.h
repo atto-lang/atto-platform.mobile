@@ -29,7 +29,8 @@ typedef enum {
     ATTO_XP_UI_REVISION = 5,
     ATTO_XP_UI_QUOTA = 6,
     ATTO_XP_UI_CLOSED = 7,
-    ATTO_XP_UI_EXHAUSTED = 8
+    ATTO_XP_UI_EXHAUSTED = 8,
+    ATTO_XP_UI_REENTRANT = 9
 } atto_xp_ui_status;
 typedef enum {
     ATTO_XP_UI_CREATE = 1,
