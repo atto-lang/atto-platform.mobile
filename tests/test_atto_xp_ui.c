@@ -84,6 +84,10 @@ static void test_main(void) {
     assert(atto_xp_ui_close(s,1,2,3) == ATTO_XP_UI_CLOSED);
     atto_xp_ui_free(s);
     s = NULL;
+    /* An epoch once used cannot be reused for a different scene. This is
+     * needed because a 64-bit handle encodes epoch, not full scene identity. */
+    assert(atto_xp_ui_open(&s,1,99,3,1,ui_allowed,&allowed) == ATTO_XP_UI_STALE);
+    assert(s == NULL);
     assert(atto_xp_ui_open(&s,1,2,3,2,ui_allowed,&allowed) == ATTO_XP_UI_OK);
     cmds[0] = (atto_xp_ui_command){ATTO_XP_UI_CREATE,0,0,5};
     assert(APPLY(s,0,cmds,1) == ATTO_XP_UI_OK);
