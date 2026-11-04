@@ -5,10 +5,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* AttoXP reference UI state ABI v1; host ONLY. No native widget creation.
+/* AttoXP scalar UI host-reference MODEL v1; host ONLY. No native widget creation.
  * A platform adapter must provide a trustworthy OS-main-thread check.
- * All calls on a state are serialized by that adapter. */
-#define ATTO_XP_UI_ABI_VERSION 1u
+ * All calls on a state are serialized by that adapter.
+ * IMPORTANT: NOT wire-compatible with the proposed 24-byte AttoXpUiHandleV1
+ * / async submit_batch ABI in platform-conformance. Its 64-bit local handle,
+ * 32-slot/64-command subset is only a fail-closed ownership/revision model. */
+#define ATTO_XP_UI_ABI_VERSION 1u /* reference-model version, not native wire ABI */
 #define ATTO_XP_UI_SLOTS 32u
 #define ATTO_XP_UI_BATCH_LIMIT 64u
 #define ATTO_XP_UI_COUNTER_LIMIT 1000000
