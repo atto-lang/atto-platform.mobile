@@ -94,6 +94,27 @@ static void test_main(void) {
     assert(READ(s,previous,&val) == ATTO_XP_UI_STALE);
     atto_xp_ui_free(s);
 }
+typedef struct { atto_xp_ui_state *state; int called; } reenter_context;
+static int malicious_thread_check(void *ctx) {
+    reenter_context *c = (reenter_context *)ctx;
+    if (c->state) {
+        uint64_t revision = 99;
+        ++c->called;
+        assert(atto_xp_ui_revision(c->state,1,2,3,&revision) == ATTO_XP_UI_REENTRANT);
+        assert(revision == 99);
+    }
+    return 1;
+}
+static void test_thread_check_reentrant(void) {
+    reenter_context c = {NULL,0};
+    atto_xp_ui_state *state = NULL;
+    uint64_t revision = 99;
+    assert(atto_xp_ui_open(&state,1,2,3,12,malicious_thread_check,&c) == ATTO_XP_UI_OK);
+    c.state = state;
+    assert(atto_xp_ui_revision(state,1,2,3,&revision) == ATTO_XP_UI_OK);
+    assert(c.called == 1 && revision == 0);
+    atto_xp_ui_free(state);
+}
 static void test_deterministic_model(void) {
     int allowed=1;
     atto_xp_ui_state *s=NULL;
@@ -116,4 +137,4 @@ static void test_deterministic_model(void) {
     assert(atto_xp_ui_revision(s,1,2,3,&rev)==ATTO_XP_UI_OK && rev==4);
     atto_xp_ui_free(s);
 }
-int main(void) { test_main(); test_deterministic_model(); return 0; }
+int main(void) { test_main(); test_deterministic_model(); test_thread_check_reentrant(); return 0; }
