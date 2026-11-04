@@ -40,9 +40,11 @@ typedef struct {
     int64_t counter; /* nonnegative bounded value for CREATE/SET; zero for REMOVE */
 } atto_xp_ui_command;
 
-/* app, scene, owner and scene_epoch must be nonzero; epoch changes every time
- * a scene identity is recycled, or old handles can collide. Epoch exhaustion
- * must fail closed in the host. Caller owns the returned state and must free. */
+/* app, scene, owner and scene_epoch must be nonzero. scene_epoch is unique
+ * and strictly increasing PROCESS-WIDE, across ALL scene identities and
+ * after close/free. Reusing an epoch would alias a stale handle from another
+ * scene, so the implementation rejects it; the host must handle exhaustion.
+ * Handles are never durable across process restarts. Caller owns state. */
 uint32_t atto_xp_ui_abi_version(void);
 atto_xp_ui_status atto_xp_ui_open(
     atto_xp_ui_state **out, uint64_t app, uint64_t scene,
