@@ -16,6 +16,7 @@ struct atto_xp_ui_state {
     atto_xp_ui_thread_check check;
     void *context;
     int closed;
+    int in_thread_check;
     ui_slot slots[ATTO_XP_UI_SLOTS];
 };
 static atto_xp_ui_handle make_handle(const atto_xp_ui_state *s, uint32_t slot, uint32_t generation) {
@@ -24,7 +25,12 @@ static atto_xp_ui_handle make_handle(const atto_xp_ui_state *s, uint32_t slot, u
 static atto_xp_ui_status admit(atto_xp_ui_state *s, uint64_t app, uint64_t scene, uint64_t owner) {
     if (!s || !app || !scene || !owner) return ATTO_XP_UI_INVALID;
     if (s->app != app || s->scene != scene || s->owner != owner) return ATTO_XP_UI_DENIED;
-    if (!s->check || !s->check(s->context)) return ATTO_XP_UI_WRONG_THREAD;
+    if (s->in_thread_check) return ATTO_XP_UI_REENTRANT;
+    if (!s->check) return ATTO_XP_UI_WRONG_THREAD;
+    s->in_thread_check = 1;
+    const int is_ui_thread = s->check(s->context);
+    s->in_thread_check = 0;
+    if (!is_ui_thread) return ATTO_XP_UI_WRONG_THREAD;
     if (s->closed) return ATTO_XP_UI_CLOSED;
     return ATTO_XP_UI_OK;
 }
