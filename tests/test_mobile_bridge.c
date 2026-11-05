@@ -106,7 +106,38 @@ static void test_clear_message(void) {
     assert(bytes[0] == 0 && bytes[1] == 0);
 }
 
+/* Host reference only: memmove overlap is intentional, but a bad capacity
+ * must not expose a partially copied payload. No mobile device is exercised. */
+static void test_copy_message_overlap_and_failure_atomicity(void) {
+    uint8_t bytes[8] = {10, 20, 30, 40, 50, 60, 70, 80};
+    const uint8_t initial[8] = {10, 20, 30, 40, 50, 60, 70, 80};
+    size_t written = 99;
+    assert(ores_mobile_copy_message(bytes, 4, bytes + 2, 6, &written) == ORES_MOBILE_OK);
+    assert(written == 4);
+    assert(bytes[0] == 10 && bytes[1] == 20 && bytes[2] == 10);
+    assert(bytes[3] == 20 && bytes[4] == 30 && bytes[5] == 40);
+    assert(bytes[6] == 70 && bytes[7] == 80);
+
+    memcpy(bytes, initial, sizeof bytes);
+    written = 99;
+    assert(ores_mobile_copy_message(bytes + 2, 4, bytes, 8, &written) == ORES_MOBILE_OK);
+    assert(written == 4);
+    assert(bytes[0] == 30 && bytes[1] == 40 && bytes[2] == 50 && bytes[3] == 60);
+    assert(bytes[4] == 50 && bytes[5] == 60 && bytes[6] == 70 && bytes[7] == 80);
+
+    memcpy(bytes, initial, sizeof bytes);
+    written = 99;
+    assert(ores_mobile_copy_message(bytes, 4, bytes + 2, 3, &written) ==
+           ORES_MOBILE_BUFFER_TOO_SMALL);
+    assert(written == 0 && memcmp(bytes, initial, sizeof bytes) == 0);
+
+    written = 99;
+    assert(ores_mobile_copy_message(bytes, 8, bytes, 8, &written) == ORES_MOBILE_OK);
+    assert(written == 8 && memcmp(bytes, initial, sizeof bytes) == 0);
+}
+
 int main(void) {
+    test_copy_message_overlap_and_failure_atomicity();
     test_clear_message();
     test_dispatch_copy();
     uint8_t input[] = {11, 22, 33};
