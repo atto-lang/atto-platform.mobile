@@ -58,6 +58,37 @@ int main(void) {
             expect_value(s,handle,expected);
         }
     }
+    /* A valid first command followed by a stale second handle is atomic:
+       no speculative data or revision becomes visible on either slot. */
+    atto_xp_ui_command create_other = {ATTO_XP_UI_CREATE,1,0,7};
+    atto_xp_ui_handle other = 0;
+    assert(atto_xp_ui_apply(s,1,2,3,revision,&create_other,1) == ATTO_XP_UI_OK);
+    ++revision;
+    assert(atto_xp_ui_handle_for_slot(s,1,2,3,1,&other) == ATTO_XP_UI_OK);
+    atto_xp_ui_command atomic_batch[2] = {
+        {ATTO_XP_UI_SET,0,handle,333},
+        {ATTO_XP_UI_SET,1,other ^ UINT64_C(0x10000),9}
+    };
+    assert(atto_xp_ui_apply(s,1,2,3,revision,atomic_batch,2) == ATTO_XP_UI_STALE);
+    expect_value(s,handle,expected);
+    expect_value(s,other,7);
+    uint64_t unchanged_revision = UINT64_MAX;
+    assert(atto_xp_ui_revision(s,1,2,3,&unchanged_revision) == ATTO_XP_UI_OK);
+    assert(unchanged_revision == revision);
+    atomic_batch[1].expected_handle = other;
+    assert(atto_xp_ui_apply(s,1,2,3,revision,atomic_batch,2) == ATTO_XP_UI_OK);
+    ++revision;
+    expected = 333;
+    expect_value(s,handle,expected);
+    expect_value(s,other,9);
+    int64_t denied_value = -999;
+    assert(atto_xp_ui_read(s,1,2,44,other,&denied_value) == ATTO_XP_UI_DENIED);
+    assert(denied_value == -999);
+    atto_xp_ui_command remove_other = {ATTO_XP_UI_REMOVE,1,other,0};
+    assert(atto_xp_ui_apply(s,1,2,3,revision,&remove_other,1) == ATTO_XP_UI_OK);
+    ++revision;
+    assert(atto_xp_ui_read(s,1,2,3,other,&denied_value) == ATTO_XP_UI_STALE);
+    assert(denied_value == -999);
     assert(atto_xp_ui_close(s,1,2,3) == ATTO_XP_UI_OK);
     atto_xp_ui_free(s);
     return 0;
