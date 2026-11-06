@@ -173,6 +173,7 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         (self.root / "ignored.bin").write_text("xx")
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS device names require case-sensitive fixture")
     def test_windows_superscript_com_device_name(self):
         (self.root / "COM\u00b9.txt").write_text("device\n")
         git(self.root, "add", "COM\u00b9.txt")
@@ -181,7 +182,6 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.assertNotEqual(self.run_checker().returncode, 0)
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS device names require case-sensitive fixture")
-
     def test_windows_superscript_lpt_device_name(self):
         (self.root / "LPT\u00b2.txt").write_text("device\n")
         git(self.root, "add", "LPT\u00b2.txt")
@@ -190,7 +190,6 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.assertNotEqual(self.run_checker().returncode, 0)
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
-
     def test_windows_conin_device_name(self):
         (self.root / "CONIN$").write_text("device\n")
         git(self.root, "add", "CONIN$")
@@ -199,7 +198,6 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.assertNotEqual(self.run_checker().returncode, 0)
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
-
     def test_windows_conout_device_name(self):
         (self.root / "CONOUT$").write_text("device\n")
         git(self.root, "add", "CONOUT$")
