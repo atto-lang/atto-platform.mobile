@@ -2,10 +2,10 @@
 """Offline negative matrix for the source-free GitHub runner metadata verifier."""
 import copy
 import unittest
-from check_mobile_runner_admission import validate, REPO, WORKFLOW, PROOF_STEP
+from check_mobile_runner_admission import validate, REPO, REPO_ID, WORKFLOW, PROOF_STEP
 
 SHA = "a" * 40
-RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO},
+RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO, "id": REPO_ID, "private": True},
        "head_sha": SHA, "status": "completed", "conclusion": "success"}
 
 
@@ -158,6 +158,60 @@ class RunnerAdmissionTests(unittest.TestCase):
         step["conclusion"] = "failure"
         d["jobs"][0]["steps"].insert(0, step)
         self.check_reject(jobs=d)
+
+
+    def test_substituted_numeric_repo_id(self):
+        d = copy.deepcopy(RUN)
+        d["repository"]["id"] = REPO_ID + 1
+        self.check_reject(run=d)
+
+    def test_boolean_repo_id_denied(self):
+        d = copy.deepcopy(RUN)
+        d["repository"]["id"] = True
+        self.check_reject(run=d)
+
+    def test_public_repo_metadata_denied(self):
+        d = copy.deepcopy(RUN)
+        d["repository"]["private"] = False
+        self.check_reject(run=d)
+
+    def test_missing_repo_privacy_metadata_denied(self):
+        d = copy.deepcopy(RUN)
+        del d["repository"]["private"]
+        self.check_reject(run=d)
+
+    def test_boolean_job_attempt_must_not_equal_integer_one(self):
+        run = copy.deepcopy(RUN)
+        jobs = copy.deepcopy(JOBS)
+        run["run_attempt"] = 1
+        for job_record in jobs["jobs"]:
+            job_record["run_attempt"] = 1
+        jobs["jobs"][0]["run_attempt"] = True
+        self.check_reject(run=run, jobs=jobs)
+
+    def test_boolean_job_run_id_must_not_equal_integer_one(self):
+        run = copy.deepcopy(RUN)
+        jobs = copy.deepcopy(JOBS)
+        run["id"] = 1
+        for job_record in jobs["jobs"]:
+            job_record["run_id"] = 1
+        jobs["jobs"][0]["run_id"] = True
+        self.check_reject(run=run, jobs=jobs)
+
+    def test_self_hosted_runner_cannot_prove_github_hosted_admission(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][0]["labels"].append("self-hosted")
+        self.check_reject(jobs=jobs)
+
+    def test_duplicate_runner_labels_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][0]["labels"].append("ubuntu-24.04")
+        self.check_reject(jobs=jobs)
+
+    def test_nonstring_runner_label_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][0]["labels"].append({"name": "ubuntu-24.04"})
+        self.check_reject(jobs=jobs)
 
 
 if __name__ == "__main__":
