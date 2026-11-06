@@ -343,5 +343,27 @@ class RawCheckoutPreflightTests(unittest.TestCase):
     def test_harmless_git_terminal_prompt_setting_is_accepted(self):
         self.assertEqual(self.run_checker(extra_env={"GIT_TERMINAL_PROMPT": "0"}).returncode, 0)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux case-sensitive filesystem regression")
+    def test_untracked_filename_case_alias_is_not_hidden_by_core_ignorecase(self):
+        git(self.root, "config", "core.ignorecase", "true")
+        (self.root / "TRACKED.txt").write_text("physically untracked attacker input\\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("TRACKED.txt", git(self.root, "-c", "core.ignorecase=false", "ls-files", "--others"))
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux case-sensitive filesystem regression")
+    def test_untracked_parent_directory_case_alias_is_denied(self):
+        (self.root / "src").mkdir()
+        (self.root / "src" / "fixture.atto").write_text("trusted\\n")
+        git(self.root, "add", "src/fixture.atto")
+        git(self.root, "commit", "-qm", "add tracked parent")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "config", "core.ignorecase", "true")
+        (self.root / "SRC").mkdir()
+        (self.root / "SRC" / "fixture.atto").write_text("physically untracked attacker input\\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("SRC/fixture.atto", git(self.root, "-c", "core.ignorecase=false", "ls-files", "--others"))
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
 if __name__ == "__main__":
     unittest.main()
