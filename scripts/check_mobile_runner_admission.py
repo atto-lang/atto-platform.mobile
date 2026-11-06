@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 
 REPO = "ores-truffle-oreslang/oreslang-platform.mobile"
+REPO_ID = 1419865409  # Immutable GitHub repository identity; name alone can be reused.
 WORKFLOW = "Source-local runner allocation canary (metadata only)"
 REQUIRED = {"allocation-only": "ubuntu-24.04", "allocation-macos-only": "macos-15"}
 PROOF_STEP = {
@@ -71,6 +72,10 @@ def validate(run, jobs, expected_sha):
     repository = run.get("repository")
     if not isinstance(repository, dict) or repository.get("full_name") != REPO:
         problems.append("wrong source repository")
+    if not isinstance(repository, dict) or type(repository.get("id")) is not int or repository.get("id") != REPO_ID:
+        problems.append("wrong immutable source repository ID")
+    if not isinstance(repository, dict) or repository.get("private") is not True:
+        problems.append("source repository privacy not verified")
     if run.get("head_sha") != expected_sha:
         problems.append("wrong source head SHA")
     if run.get("status") != "completed" or run.get("conclusion") != "success":
@@ -98,11 +103,17 @@ def validate(run, jobs, expected_sha):
             problems.append(f"{name}: missing or duplicate job ID")
         else:
             job_ids.add(job_id)
-        if job.get("run_id") != run_id or job.get("run_attempt") != attempt:
+        # bool == 1 is true in Python. IDs and attempts must be actual integers.
+        if (type(job.get("run_id")) is not int or job.get("run_id") != run_id or
+                type(job.get("run_attempt")) is not int or job.get("run_attempt") != attempt):
             problems.append(f"{name}: wrong run or attempt")
         labels = job.get("labels")
-        if not isinstance(labels, list) or REQUIRED[name] not in labels:
-            problems.append(f"{name}: required runner label absent")
+        if (not isinstance(labels, list) or
+                any(type(label) is not str or not label for label in labels) or
+                len(labels) != len(set(labels)) or
+                REQUIRED[name] not in labels or "self-hosted" in labels):
+            # A self-hosted label cannot establish a GitHub-hosted runner canary.
+            problems.append(f"{name}: missing, malformed or untrusted runner labels")
         runner = job.get("runner_id")
         if type(runner) is not int or runner <= 0:
             problems.append(f"{name}: no admitted runner")
