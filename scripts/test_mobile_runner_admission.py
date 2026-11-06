@@ -6,13 +6,17 @@ from check_mobile_runner_admission import validate, REPO, REPO_ID, WORKFLOW, PRO
 
 SHA = "a" * 40
 RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO, "id": REPO_ID, "private": True},
-       "head_sha": SHA, "status": "completed", "conclusion": "success"}
+       "head_sha": SHA, "event": "pull_request",
+       "head_repository": {"full_name": REPO, "id": REPO_ID, "private": True},
+       "status": "completed", "conclusion": "success"}
 
 
 def job(name, label):
     return {"id": 200 if name == "allocation-only" else 201,
             "run_id": 81, "run_attempt": 2, "name": name,
-            "runner_id": 123456, "labels": [label], "status": "completed", "conclusion": "success",
+            "runner_id": 123456, "labels": [label], "head_sha": SHA,
+            "started_at": "2026-10-29T02:59:59Z", "completed_at": "2026-10-29T03:00:02Z",
+            "status": "completed", "conclusion": "success",
             "steps": [{"name": PROOF_STEP[name], "status": "completed", "conclusion": "success",
                        "started_at": "2026-10-29T03:00:00Z", "completed_at": "2026-10-29T03:00:01Z"}]}
 
@@ -212,6 +216,79 @@ class RunnerAdmissionTests(unittest.TestCase):
         jobs = copy.deepcopy(JOBS)
         jobs["jobs"][0]["labels"].append({"name": "ubuntu-24.04"})
         self.check_reject(jobs=jobs)
+
+
+    def test_workflow_dispatch_with_same_owner_is_admitted(self):
+        run = copy.deepcopy(RUN); run["event"] = "workflow_dispatch"
+        self.assertEqual(validate(run, JOBS, SHA), [])
+
+    def test_forked_head_repository_denied(self):
+        run = copy.deepcopy(RUN); run["head_repository"]["full_name"] = "attacker/fork"
+        self.check_reject(run=run)
+
+    def test_forged_head_repository_numeric_id_denied(self):
+        run = copy.deepcopy(RUN); run["head_repository"]["id"] += 1
+        self.check_reject(run=run)
+
+    def test_missing_head_repository_denied(self):
+        run = copy.deepcopy(RUN); run.pop("head_repository")
+        self.check_reject(run=run)
+
+    def test_public_head_repository_denied(self):
+        run = copy.deepcopy(RUN); run["head_repository"]["private"] = False
+        self.check_reject(run=run)
+
+    def test_push_event_denied(self):
+        run = copy.deepcopy(RUN); run["event"] = "push"
+        self.check_reject(run=run)
+
+    def test_malformed_event_type_denied(self):
+        run = copy.deepcopy(RUN); run["event"] = ["pull_request"]
+        self.check_reject(run=run)
+
+    def test_missing_job_source_head_denied(self):
+        jobs = copy.deepcopy(JOBS); jobs["jobs"][0].pop("head_sha")
+        self.check_reject(jobs=jobs)
+
+    def test_other_job_source_head_denied(self):
+        jobs = copy.deepcopy(JOBS); jobs["jobs"][1]["head_sha"] = "b" * 40
+        self.check_reject(jobs=jobs)
+
+    def test_wrong_job_started_timestamp_denied(self):
+        jobs = copy.deepcopy(JOBS); jobs["jobs"][0]["started_at"] = "not-time"
+        self.check_reject(jobs=jobs)
+
+    def test_wrong_job_completed_timestamp_denied(self):
+        jobs = copy.deepcopy(JOBS); jobs["jobs"][1]["completed_at"] = None
+        self.check_reject(jobs=jobs)
+
+    def test_job_finishes_before_steps_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][1]["completed_at"] = "2026-10-29T03:00:00Z"
+        self.check_reject(jobs=jobs)
+
+    def test_step_starts_before_job_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][0]["started_at"] = "2026-10-29T03:00:01Z"
+        self.check_reject(jobs=jobs)
+
+    def test_step_overlap_with_housekeeping_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        proof = jobs["jobs"][0]["steps"][0]
+        setup = copy.deepcopy(proof)
+        setup["name"] = "Set up job"
+        setup["started_at"] = "2026-10-29T03:00:00Z"
+        setup["completed_at"] = "2026-10-29T03:00:02Z"
+        jobs["jobs"][0]["steps"].insert(0, setup)
+        self.check_reject(jobs=jobs)
+
+    def test_conflicting_platform_labels_denied(self):
+        jobs = copy.deepcopy(JOBS)
+        jobs["jobs"][0]["labels"].append("macos-15")
+        self.check_reject(jobs=jobs)
+
+    def test_illformed_direct_expected_sha_denied(self):
+        self.assertTrue(validate(RUN, JOBS, "untrusted-head"))
 
 
 if __name__ == "__main__":
