@@ -28,8 +28,9 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         git(self.root, "commit", "-qm", "base")
         self.expected = git(self.root, "rev-parse", "HEAD")
 
-    def run_checker(self, expected=None):
+    def run_checker(self, expected=None, extra_env=None):
         env = dict(os.environ, EXPECTED_SHA=expected or self.expected)
+        env.update(extra_env or {})
         return subprocess.run(
             [sys.executable, str(SCRIPT)], cwd=self.root, env=env,
             text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -172,6 +173,177 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         (self.root / "ignored.bin").write_text("xx")
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+    def test_windows_superscript_com_device_name(self):
+        (self.root / "COM\u00b9.txt").write_text("device\n")
+        git(self.root, "add", "COM\u00b9.txt")
+        git(self.root, "commit", "-qm", "superscript com")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS device names require case-sensitive fixture")
+
+    def test_windows_superscript_lpt_device_name(self):
+        (self.root / "LPT\u00b2.txt").write_text("device\n")
+        git(self.root, "add", "LPT\u00b2.txt")
+        git(self.root, "commit", "-qm", "superscript lpt")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
+
+    def test_windows_conin_device_name(self):
+        (self.root / "CONIN$").write_text("device\n")
+        git(self.root, "add", "CONIN$")
+        git(self.root, "commit", "-qm", "console input")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Windows DOS console names require case-sensitive fixture")
+
+    def test_windows_conout_device_name(self):
+        (self.root / "CONOUT$").write_text("device\n")
+        git(self.root, "add", "CONOUT$")
+        git(self.root, "commit", "-qm", "console output")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_nonreserved_windows_port_name(self):
+        (self.root / "COM10.txt").write_text("ordinary\n")
+        git(self.root, "add", "COM10.txt")
+        git(self.root, "commit", "-qm", "ordinary name")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertEqual(self.run_checker().returncode, 0)
+
+    def test_active_git_replace_cannot_substitute_head_tree(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "replace", pinned, substitute)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"), pinned)
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_dormant_git_replace_ref_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("another commit\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "update-ref", "HEAD", pinned)
+        git(self.root, "reset", "--hard", pinned)
+        git(self.root, "replace", substitute, pinned)
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_untrusted_no_replace_env_cannot_bypass(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "replace", pinned, substitute)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_NO_REPLACE_OBJECTS": "0"}).returncode, 0)
+
+    def test_custom_git_replace_namespace_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("substituted bytes\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "substitute")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        env = dict(os.environ, GIT_REPLACE_REF_BASE="refs/test-substitution")
+        subprocess.check_call(["git", "-C", str(self.root), "replace", pinned, substitute],
+                              env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        git(self.root, "update-ref", "HEAD", pinned)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_REPLACE_REF_BASE": "refs/test-substitution"}).returncode, 0)
+
+    def test_packed_git_replace_ref_is_rejected(self):
+        pinned = self.expected
+        (self.root / "tracked.txt").write_text("replacement candidate\n")
+        git(self.root, "add", "tracked.txt")
+        git(self.root, "commit", "-qm", "candidate")
+        substitute = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "update-ref", "HEAD", pinned)
+        git(self.root, "reset", "--hard", pinned)
+        git(self.root, "replace", substitute, pinned)
+        git(self.root, "pack-refs", "--all", "--prune")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_tracked_git_symlink_object_is_rejected(self):
+        (self.root / "linked.txt").symlink_to("tracked.txt")
+        git(self.root, "add", "linked.txt")
+        git(self.root, "commit", "-qm", "tracked symlink")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_tracked_gitlink_is_rejected(self):
+        git(self.root, "update-index", "--add", "--cacheinfo",
+            "160000," + self.expected + ",submodule")
+        git(self.root, "commit", "-qm", "tracked gitlink")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    def test_external_index_substitution_is_rejected(self):
+        # The worktree is trusted but the REAL .git/index has an unreviewed staged blob.
+        # A synthetic clean index outside the checkout must never replace it.
+        import shutil
+        with tempfile.TemporaryDirectory() as outside:
+            alternate = Path(outside) / "clean-index"
+            shutil.copyfile(self.root / ".git/index", alternate)
+            (self.root / "tracked.txt").write_text("malicious staged content\n")
+            git(self.root, "add", "tracked.txt")
+            (self.root / "tracked.txt").write_text("trusted\n")
+            baseline = self.run_checker()
+            self.assertNotEqual(baseline.returncode, 0)
+            spoof = self.run_checker(extra_env={"GIT_INDEX_FILE": str(alternate)})
+            self.assertNotEqual(spoof.returncode, 0,
+                "GIT_INDEX_FILE substituted a clean index, hiding staged tampering")
+
+    def test_git_dir_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_DIR": str(self.root / ".git")}).returncode, 0)
+
+    def test_git_work_tree_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_WORK_TREE": str(self.root)}).returncode, 0)
+
+    def test_git_common_dir_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_COMMON_DIR": str(self.root / ".git")}).returncode, 0)
+
+    def test_git_object_directory_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_OBJECT_DIRECTORY": str(self.root / ".git/objects")}).returncode, 0)
+
+    def test_git_config_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_CONFIG_COUNT": "0"}).returncode, 0)
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_CONFIG_PARAMETERS": "'core.filemode=false'"}).returncode, 0)
+
+    def test_git_namespace_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={"GIT_NAMESPACE": "hidden"}).returncode, 0)
+
+    def test_harmless_no_replace_override_is_accepted(self):
+        self.assertEqual(self.run_checker(extra_env={"GIT_NO_REPLACE_OBJECTS": "0"}).returncode, 0)
+
+    def test_git_alternate_object_directory_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(self.root / ".git/objects")
+        }).returncode, 0)
+
+    def test_git_config_global_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_CONFIG_GLOBAL": str(self.root / ".git/config")
+        }).returncode, 0)
+
+    def test_git_shallow_file_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_SHALLOW_FILE": str(self.root / ".git/shallow")
+        }).returncode, 0)
+
+    def test_git_ceiling_directories_environment_is_rejected(self):
+        self.assertNotEqual(self.run_checker(extra_env={
+            "GIT_CEILING_DIRECTORIES": str(self.root.parent)
+        }).returncode, 0)
+
+    def test_harmless_git_terminal_prompt_setting_is_accepted(self):
+        self.assertEqual(self.run_checker(extra_env={"GIT_TERMINAL_PROMPT": "0"}).returncode, 0)
 
 if __name__ == "__main__":
     unittest.main()
