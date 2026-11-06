@@ -111,7 +111,11 @@ class RunnerAdmissionTests(unittest.TestCase):
         d = copy.deepcopy(JOBS)
         steps = d["jobs"][0]["steps"]
         setup = copy.deepcopy(steps[0]); setup["name"] = "Set up job"
+        setup["started_at"] = "2026-10-29T02:59:59Z"
+        setup["completed_at"] = "2026-10-29T03:00:00Z"
         finish = copy.deepcopy(steps[0]); finish["name"] = "Complete job"
+        finish["started_at"] = "2026-10-29T03:00:01Z"
+        finish["completed_at"] = "2026-10-29T03:00:02Z"
         d["jobs"][0]["steps"] = [setup, steps[0], finish]
         self.assertEqual(validate(RUN, d, SHA), [])
 
