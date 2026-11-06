@@ -19,14 +19,32 @@ MAX_FILE = 8 * 1024 * 1024
 MAX_TOTAL = 64 * 1024 * 1024
 
 
+# Only these inherited Git variables are harmless at a source admission gate.
+# Never let a CI caller redirect the index, worktree, Git directory, objects,
+# namespaces, or configuration with GIT_* process environment overrides.
+ALLOWED_GIT_ENV = frozenset({"GIT_NO_REPLACE_OBJECTS", "GIT_TERMINAL_PROMPT"})
+
+
+def validate_git_environment():
+    unexpected = sorted(name for name in os.environ
+                        if name.startswith("GIT_") and name not in ALLOWED_GIT_ENV)
+    if unexpected:
+        raise ValueError("inherited Git control environment is forbidden: " + unexpected[0])
+
+
 def git(*args):
+    # Defense in depth: even permitted inherited Git knobs are not forwarded
+    # to Git. Object replacement is disabled for every subprocess call.
+    env = {name: value for name, value in os.environ.items()
+           if not name.startswith("GIT_")}
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"
     return subprocess.check_output(
         ["git", "-c", "core.fsmonitor=false", "--no-optional-locks", *args],
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, env=env,
     )
 
 
-WIN_RESERVED = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
+WIN_RESERVED = re.compile(r"^(?:CONIN\$|CONOUT\$|CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)", re.I)
 
 
 def safe_path(path):
@@ -137,8 +155,13 @@ def raw_contents(root_fd, path, mode):
 
 
 def verify(expected):
+    validate_git_environment()
     if not re.fullmatch(r"[0-9a-f]{40}", expected or ""):
         raise ValueError("missing or invalid full expected source SHA")
+    if os.environ.get("GIT_REPLACE_REF_BASE"):
+        raise ValueError("custom Git replacement-ref namespace is forbidden")
+    if git("for-each-ref", "--format=%(refname)", "refs/replace").strip():
+        raise ValueError("Git replace refs are forbidden in source checkout")
     if git("rev-parse", "--show-object-format").strip() != b"sha1":
         raise ValueError("unsupported Git object format")
     if git("rev-parse", "HEAD").strip().decode("ascii") != expected:
