@@ -39,7 +39,8 @@ def git(*args):
            if not name.startswith("GIT_")}
     env["GIT_NO_REPLACE_OBJECTS"] = "1"
     return subprocess.check_output(
-        ["git", "-c", "core.fsmonitor=false", "--no-optional-locks", *args],
+        ["git", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
+         "-c", "core.ignorecase=false", "--no-optional-locks", *args],
         stderr=subprocess.DEVNULL, env=env,
     )
 
