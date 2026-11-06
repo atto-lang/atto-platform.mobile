@@ -66,8 +66,17 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
         return NULL;
     }
     output = (*env)->NewByteArray(env, (jsize)written);
-    if (output != NULL && written != 0)
+    if (output == NULL) {
+        clear_and_free(owned, (size_t)count);
+        return NULL; /* allocation exception remains pending */
+    }
+    if (written != 0) {
         (*env)->SetByteArrayRegion(env, output, 0, (jsize)written, (const jbyte *)owned);
+        if ((*env)->ExceptionCheck(env)) {
+            clear_and_free(owned, (size_t)count);
+            return NULL; /* never return a value alongside a pending copy exception */
+        }
+    }
     clear_and_free(owned, (size_t)count);
-    return output; /* JVM exceptions from allocation or copying propagate. */
+    return output;
 }
