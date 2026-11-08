@@ -29,10 +29,18 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-      - name: Execute Linux physical checkout adversarial regressions
+      - name: Verify physical source checkout before executing repository tests
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_raw_checkout.py
+      - name: Execute complete Linux checkout security regression suites
         shell: bash
         run: |
           set -euo pipefail
           python3 --version
           git --version
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -v
           python3 -m unittest discover -s tests -p 'test_raw_checkout_adversarial_edges.py' -v

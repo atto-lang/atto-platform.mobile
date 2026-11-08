@@ -230,5 +230,31 @@ class RawCheckoutAdversarialEdges(unittest.TestCase):
             os.close(root_fd)
 
 
+
+    def test_out_of_tree_git_metadata_symlink_is_rejected(self):
+        # Git accepts this symlink but a pinned CI checkout must not.
+        with tempfile.TemporaryDirectory(prefix="external-git-metadata-") as out:
+            target = Path(out) / "repo-metadata"
+            (self.root / ".git").rename(target)
+            (self.root / ".git").symlink_to(target, target_is_directory=True)
+            self.assertEqual(git(self.root, "rev-parse", "HEAD"), self.head)
+            self.deny()
+
+    def test_out_of_tree_gitfile_metadata_pointer_is_rejected(self):
+        # Git worktree pointers are valid Git but not our isolated CI checkout.
+        with tempfile.TemporaryDirectory(prefix="external-gitfile-metadata-") as out:
+            target = Path(out) / "repo-metadata"
+            (self.root / ".git").rename(target)
+            (self.root / ".git").write_text(f"gitdir: {target}\n")
+            self.assertEqual(git(self.root, "rev-parse", "HEAD"), self.head)
+            self.deny()
+
+    def test_normal_git_directory_metadata_is_admitted(self):
+        self.assertTrue((self.root / ".git").is_dir())
+        self.assertFalse((self.root / ".git").is_symlink())
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

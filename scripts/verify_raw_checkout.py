@@ -220,6 +220,11 @@ def verify(expected):
     validate_git_environment()
     if not re.fullmatch(r"[0-9a-f]{40}", expected or ""):
         raise ValueError("missing or invalid full expected source SHA")
+    # Source-owned Actions checkouts require on-disk Git metadata rooted here.
+    # Git accepts .git symlinks and gitfiles that redirect to external storage.
+    metadata_before = os.lstat(".git")
+    if not stat.S_ISDIR(metadata_before.st_mode):
+        raise ValueError("non-directory or redirected Git metadata")
     if os.environ.get("GIT_REPLACE_REF_BASE"):
         raise ValueError("custom Git replacement-ref namespace is forbidden")
     if git("for-each-ref", "--format=%(refname)", "refs/replace").strip():
@@ -262,6 +267,11 @@ def verify(expected):
         raise ValueError("HEAD/index changed during verification")
     if git("ls-files", "--others", "-z"):
         raise ValueError("untracked files appeared during verification")
+    metadata_after = os.lstat(".git")
+    if (not stat.S_ISDIR(metadata_after.st_mode) or
+            (metadata_before.st_dev, metadata_before.st_ino) !=
+            (metadata_after.st_dev, metadata_after.st_ino)):
+        raise ValueError("Git metadata directory changed during verification")
 
 
 if __name__ == "__main__":
