@@ -155,6 +155,53 @@ def raw_contents(root_fd, path, mode):
             os.close(fd)
 
 
+
+def scan_physical_checkout(root_fd, expected_tree):
+    """Reject every physical untracked entry, including Git-invisible FIFOs.
+
+    Git ls-files --others does not enumerate all special filesystem objects.
+    Walk directory descriptors with O_NOFOLLOW instead of trusting Git's
+    untracked listing or following attacker-controlled directory symlinks.
+    """
+    expected_dirs = set()
+    for path in expected_tree:
+        pieces = path.split(b"/")
+        for depth in range(1, len(pieces)):
+            expected_dirs.add(b"/".join(pieces[:depth]))
+    count = 0
+
+    def walk(parent_fd, prefix):
+        nonlocal count
+        with os.scandir(parent_fd) as entries:
+            for entry in entries:
+                name = os.fsencode(entry.name)
+                if not prefix and name == b".git":
+                    continue  # repository metadata, not source checkout content
+                rel = prefix + b"/" + name if prefix else name
+                count += 1
+                if count > MAX_FILES * 16:
+                    raise ValueError("physical checkout entry budget exceeded")
+                if not safe_path(rel):
+                    raise ValueError("nonportable physical checkout entry")
+                details = entry.stat(follow_symlinks=False)
+                if stat.S_ISDIR(details.st_mode):
+                    if rel not in expected_dirs:
+                        raise ValueError("untracked physical checkout directory")
+                    fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY |
+                                 os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent_fd)
+                    try:
+                        walk(fd, rel)
+                    finally:
+                        os.close(fd)
+                elif stat.S_ISREG(details.st_mode):
+                    if rel not in expected_tree:
+                        raise ValueError("untracked physical checkout file")
+                else:
+                    raise ValueError("untracked or unsupported physical checkout object")
+
+    walk(root_fd, b"")
+
+
 def verify(expected):
     validate_git_environment()
     if not re.fullmatch(r"[0-9a-f]{40}", expected or ""):
@@ -179,6 +226,7 @@ def verify(expected):
     total = 0
     root_fd = os.open(b".", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     try:
+        scan_physical_checkout(root_fd, expected_tree)
         for path, (mode, oid) in expected_tree.items():
             data = raw_contents(root_fd, path, mode)
             total += len(data)
@@ -191,6 +239,7 @@ def verify(expected):
                 raise ValueError(
                     "raw worktree blob differs from pinned HEAD: " + os.fsdecode(path)
                 )
+        scan_physical_checkout(root_fd, expected_tree)
     finally:
         os.close(root_fd)
     if git("rev-parse", "HEAD").strip().decode("ascii") != expected or (
