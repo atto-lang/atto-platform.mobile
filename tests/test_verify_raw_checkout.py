@@ -365,5 +365,85 @@ class RawCheckoutPreflightTests(unittest.TestCase):
         self.assertIn("SRC/fixture.atto", git(self.root, "-c", "core.ignorecase=false", "ls-files", "--others"))
         self.assertNotEqual(self.run_checker().returncode, 0)
 
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "case-sensitive Linux regression")
+    def test_hostile_untracked_cache_and_ignorecase_cannot_hide_alias(self):
+        git(self.root, "config", "core.ignorecase", "true")
+        git(self.root, "config", "core.untrackedCache", "true")
+        (self.root / "TRACKED.txt").write_text("not tracked\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("TRACKED.txt", git(self.root, "-c", "core.ignorecase=false",
+                                          "-c", "core.untrackedCache=false", "ls-files", "--others"))
+        denied = self.run_checker()
+        self.assertEqual(denied.returncode, 1, denied.stdout + denied.stderr)
+        self.assertIn("RAW_CHECKOUT_DENIED", denied.stderr)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "case-sensitive Linux regression")
+    def test_identical_hardlinked_case_alias_is_still_untracked(self):
+        os.link(self.root / "tracked.txt", self.root / "TRACKED.txt")
+        git(self.root, "config", "core.ignorecase", "true")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("TRACKED.txt", git(self.root, "-c", "core.ignorecase=false",
+                                          "ls-files", "--others"))
+        self.assertNotEqual(self.run_checker().returncode, 0,
+                            "identical bytes/inode do not authorize an extra pathname")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "case-sensitive Linux regression")
+    def test_ignored_filename_alias_is_not_hidden_by_ignorecase(self):
+        (self.root / ".gitignore").write_text("TRACKED.txt\n")
+        git(self.root, "add", ".gitignore")
+        git(self.root, "commit", "-qm", "add ignore rule")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "config", "core.ignorecase", "true")
+        (self.root / "TRACKED.txt").write_text("ignored alias\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("TRACKED.txt", git(self.root, "-c", "core.ignorecase=false",
+                                          "ls-files", "--others"))
+        self.assertNotEqual(self.run_checker().returncode, 0,
+                            "an ignored spelling collision is still an untracked file")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "case-sensitive Linux regression")
+    def test_deep_case_alias_denied_with_hostile_git_options(self):
+        (self.root / "src" / "nested").mkdir(parents=True)
+        (self.root / "src" / "nested" / "fixture.atto").write_text("trusted\n")
+        git(self.root, "add", "src/nested/fixture.atto")
+        git(self.root, "commit", "-qm", "tracked nested file")
+        self.expected = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "config", "core.ignorecase", "true")
+        git(self.root, "config", "core.untrackedCache", "true")
+        (self.root / "SRC" / "NESTED").mkdir(parents=True)
+        (self.root / "SRC" / "NESTED" / "fixture.atto").write_text("attacker\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertIn("SRC/NESTED/fixture.atto",
+                      git(self.root, "-c", "core.ignorecase=false", "-c",
+                          "core.untrackedCache=false", "ls-files", "--others"))
+        self.assertNotEqual(self.run_checker().returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "case-sensitive Linux regression")
+    def test_alias_created_after_untracked_cache_priming_is_denied(self):
+        git(self.root, "config", "core.ignorecase", "true")
+        git(self.root, "config", "core.untrackedCache", "true")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        (self.root / "TRACKED.txt").write_text("appeared after initial scan\n")
+        self.assertEqual(git(self.root, "ls-files", "--others"), "")
+        self.assertNotEqual(self.run_checker().returncode, 0,
+                            "cached pre-alias listing cannot establish a clean checkout")
+
+    def test_clean_checkout_accepts_hostile_local_case_configuration_without_alias(self):
+        git(self.root, "config", "core.ignorecase", "true")
+        git(self.root, "config", "core.untrackedCache", "true")
+        admitted = self.run_checker()
+        self.assertEqual(admitted.returncode, 0, admitted.stdout + admitted.stderr)
+        self.assertIn("RAW_CHECKOUT_EXACT_HEAD_PASS", admitted.stdout)
+
+    def test_expected_sha_malformed_and_noncanonical_forms_denied(self):
+        for value in (self.expected.upper(), self.expected[:39],
+                      self.expected + "\n", "g" * 40,
+                      " " + self.expected, "0" * 40):
+            with self.subTest(expected=repr(value)):
+                result = self.run_checker(expected=value)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("RAW_CHECKOUT_DENIED", result.stderr)
+
 if __name__ == "__main__":
     unittest.main()
