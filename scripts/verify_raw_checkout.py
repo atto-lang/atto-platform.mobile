@@ -132,8 +132,20 @@ def raw_contents(root_fd, path, mode):
         before = os.fstat(fd)
         if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_FILE:
             raise ValueError("nonregular or oversized worktree entry")
-        if bool(before.st_mode & 0o111) != (mode == b"100755"):
-            raise ValueError("wrong executable bit")
+        # Git blob identity does not attest aliases outside this checkout.
+        # External hardlinks permit out-of-tree mutation of tracked bytes.
+        if before.st_nlink != 1:
+            raise ValueError("tracked file has external hardlink aliases")
+        # Git tracks only the owner's executable bit (100644 vs 100755).
+        # Group/other execute must never substitute for owner execute.
+        executable = mode == b"100755"
+        if (bool(before.st_mode & stat.S_IXUSR) != executable or
+                (not executable and
+                 before.st_mode & (stat.S_IXGRP | stat.S_IXOTH))):
+            raise ValueError("wrong tracked owner executable bit")
+        # Setuid/setgid/sticky bits cannot be represented by Git's file mode.
+        if before.st_mode & (stat.S_ISUID | stat.S_ISGID | stat.S_ISVTX):
+            raise ValueError("unrecorded privileged file mode bits")
         buf = bytearray()
         while len(buf) <= MAX_FILE:
             block = os.read(fd, min(65536, MAX_FILE + 1 - len(buf)))

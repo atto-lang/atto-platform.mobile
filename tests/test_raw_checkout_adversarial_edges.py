@@ -146,5 +146,52 @@ class RawCheckoutAdversarialEdges(unittest.TestCase):
         self.assertIn("RAW_CHECKOUT_DENIED", result.stderr)
 
 
+    def test_tracked_executable_with_owner_execute_is_accepted(self):
+        tracked = self.root / "tracked.txt"
+        tracked.chmod(0o700)
+        self.commit("tracked executable")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_tracked_executable_group_only_execute_is_denied(self):
+        tracked = self.root / "tracked.txt"
+        tracked.chmod(0o755)
+        self.commit("tracked executable")
+        # Owner can read the bytes; only group may execute.
+        tracked.chmod(0o450)
+        self.deny()
+
+    def test_tracked_executable_other_only_execute_is_denied(self):
+        tracked = self.root / "tracked.txt"
+        tracked.chmod(0o755)
+        self.commit("tracked executable")
+        # Previously bool(st_mode & 0o111) incorrectly accepted this.
+        tracked.chmod(0o405)
+        self.deny()
+
+    def test_tracked_nonexecutable_group_execute_is_denied(self):
+        (self.root / "tracked.txt").chmod(0o450)
+        self.deny()
+
+    def test_tracked_external_hardlink_even_with_identical_bytes_is_denied(self):
+        with tempfile.TemporaryDirectory(prefix="raw-checkout-outside-") as outside:
+            other = Path(outside) / "shared-source"
+            os.link(self.root / "tracked.txt", other)
+            self.assertEqual((self.root / "tracked.txt").stat().st_nlink, 2)
+            self.deny()
+
+    def test_tracked_setuid_bit_not_in_git_mode_is_denied(self):
+        (self.root / "tracked.txt").chmod(0o4644)
+        self.deny()
+
+    def test_tracked_setgid_bit_not_in_git_mode_is_denied(self):
+        (self.root / "tracked.txt").chmod(0o2644)
+        self.deny()
+
+    def test_tracked_sticky_bit_not_in_git_mode_is_denied(self):
+        (self.root / "tracked.txt").chmod(0o1644)
+        self.deny()
+
+
 if __name__ == "__main__":
     unittest.main()
