@@ -155,10 +155,12 @@ def raw_contents(root_fd, path, mode):
         after = os.fstat(fd)
         if len(buf) > MAX_FILE or len(buf) != before.st_size or (
             before.st_dev, before.st_ino, before.st_size,
-            before.st_mtime_ns, before.st_ctime_ns
+            before.st_mtime_ns, before.st_ctime_ns,
+            before.st_mode, before.st_nlink
         ) != (
             after.st_dev, after.st_ino, after.st_size,
-            after.st_mtime_ns, after.st_ctime_ns
+            after.st_mtime_ns, after.st_ctime_ns,
+            after.st_mode, after.st_nlink
         ):
             raise ValueError("worktree entry changed during verification")
         return bytes(buf)

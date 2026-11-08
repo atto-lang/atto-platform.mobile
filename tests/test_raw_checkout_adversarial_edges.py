@@ -193,5 +193,42 @@ class RawCheckoutAdversarialEdges(unittest.TestCase):
         self.deny()
 
 
+    def test_metadata_race_changes_mode_or_link_count_even_if_times_match(self):
+        # Deterministic post-read metadata substitution: no timing-sensitive thread.
+        # The original source compared timestamps but not mode/nlink snapshots.
+        import runpy
+        import stat
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        raw_contents = runpy.run_path(str(SCRIPT))["raw_contents"]
+        root_fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        try:
+            native_fstat = os.fstat
+            for name, forged in (("st_mode", stat.S_IFREG | 0o755),
+                                 ("st_nlink", 2)):
+                with self.subTest(forged_metadata=name):
+                    calls = [0]
+
+                    def fstat_after_read(fd):
+                        calls[0] += 1
+                        metadata = native_fstat(fd)
+                        if calls[0] != 2:
+                            return metadata
+                        keys = ("st_dev", "st_ino", "st_size",
+                                "st_mtime_ns", "st_ctime_ns",
+                                "st_mode", "st_nlink")
+                        values = {key: getattr(metadata, key) for key in keys}
+                        values[name] = forged
+                        return SimpleNamespace(**values)
+
+                    with patch.object(os, "fstat", side_effect=fstat_after_read):
+                        with self.assertRaises(ValueError):
+                            raw_contents(root_fd, b"tracked.txt", b"100644")
+                    self.assertEqual(calls[0], 2)
+        finally:
+            os.close(root_fd)
+
+
 if __name__ == "__main__":
     unittest.main()
