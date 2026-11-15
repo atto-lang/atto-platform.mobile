@@ -57,27 +57,33 @@ ores_mobile_status ores_mobile_dispatch(
     return valid_status(status) ? status : ORES_MOBILE_INVALID_ARGUMENT;
 }
 
+ores_mobile_status ores_mobile_copy_preflight(
+    const uint8_t *data, size_t length, const uint8_t *scratch, size_t capacity) {
+    uintptr_t a, b;
+    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES)
+        return ORES_MOBILE_MESSAGE_TOO_LARGE;
+    if (length == 0u) return ORES_MOBILE_OK;
+    if (data == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    if (length > capacity) return ORES_MOBILE_BUFFER_TOO_SMALL;
+    if (scratch == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    a = (uintptr_t)data;
+    b = (uintptr_t)scratch;
+    if (a >= b ? a - b < length : b - a < length)
+        return ORES_MOBILE_INVALID_ARGUMENT;
+    return ORES_MOBILE_OK;
+}
+
 ores_mobile_status ores_mobile_dispatch_copy(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length,
     uint8_t *scratch, size_t capacity) {
     ores_mobile_status status;
-    uintptr_t a, b;
     size_t i;
     volatile uint8_t *erase;
-    if (handler == NULL || (length != 0u && data == NULL))
-        return ORES_MOBILE_INVALID_ARGUMENT;
-    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES)
-        return ORES_MOBILE_MESSAGE_TOO_LARGE;
-    if (length > capacity) return ORES_MOBILE_BUFFER_TOO_SMALL;
-    if (length != 0u) {
-        if (scratch == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
-        a = (uintptr_t)data;
-        b = (uintptr_t)scratch;
-        if (a >= b ? a - b < length : b - a < length)
-            return ORES_MOBILE_INVALID_ARGUMENT;
-        memcpy(scratch, data, length);
-    }
+    if (handler == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    status = ores_mobile_copy_preflight(data, length, scratch, capacity);
+    if (status != ORES_MOBILE_OK) return status;
+    if (length != 0u) memcpy(scratch, data, length);
     status = handler(context, length != 0u ? scratch : NULL, length);
     /* CPU-side non-elidable stores, including callback error paths. */
     erase = scratch;

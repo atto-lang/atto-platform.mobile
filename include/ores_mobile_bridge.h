@@ -50,6 +50,13 @@ ores_mobile_status ores_mobile_dispatch(
  * including invalid statuses. Rejected calls do not modify scratch or invoke
  * the handler. Zero-length messages allow NULL data/scratch. Access must be
  * serialized; this is not an actor mailbox or a hardware isolation boundary. */
+/* Pure preflight for an isolated caller-owned scratch copy. No handler runs,
+ * no bytes are read/written and no allocation occurs. The data and scratch
+ * regions must not overlap; zero length accepts NULL pointers. A later
+ * dispatch must revalidate because preflight is not a concurrency guarantee. */
+ores_mobile_status ores_mobile_copy_preflight(
+    const uint8_t *data, size_t length, const uint8_t *scratch, size_t capacity);
+
 ores_mobile_status ores_mobile_dispatch_copy(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length,
