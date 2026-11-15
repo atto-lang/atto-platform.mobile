@@ -46,6 +46,14 @@ ores_mobile_status ores_mobile_handoff_message(
     uint8_t *source, size_t length, uint8_t *destination,
     size_t capacity, size_t *written);
 
+/* Bounded, read-only bytewise equality of two borrowed message spans.
+ * Returns 1 for equal, 0 for different, -1 for invalid/oversize lengths.
+ * Empty spans permit NULL; nonempty spans require two valid buffers.
+ * This is NOT an authenticated tag check or timing-safe cryptographic API.
+ * The compiler may optimize the comparison; do not use for MACs/secrets. */
+int ores_mobile_messages_equal(const uint8_t *left, const uint8_t *right,
+                               size_t length);
+
 /* Calls handler synchronously; does not enqueue, spawn or schedule actors.
  * Callback results outside the declared status enum fail closed as INVALID_ARGUMENT. */
 ores_mobile_status ores_mobile_dispatch(
