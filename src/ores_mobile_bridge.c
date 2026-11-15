@@ -91,3 +91,11 @@ ores_mobile_status ores_mobile_dispatch_copy(
     return valid_status(status) ? status : ORES_MOBILE_INVALID_ARGUMENT;
 }
 
+
+ores_mobile_status ores_mobile_scratch_requirement(size_t length, size_t *required) {
+    if (required == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    *required = 0;
+    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES) return ORES_MOBILE_MESSAGE_TOO_LARGE;
+    *required = length;
+    return ORES_MOBILE_OK;
+}
