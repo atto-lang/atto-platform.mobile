@@ -16,7 +16,7 @@ cat "$MOCK_SYMBOL_DIR/$(basename "$archive").txt"
 MOCK
 chmod +x "$tmp/bin/xcrun"
 export PATH="$tmp/bin:$PATH" MOCK_SYMBOL_DIR="$tmp/symbols"
-all_symbols=$(printf '%s\n' _ores_mobile_abi_version _ores_mobile_copy_message _ores_mobile_clear_message _ores_mobile_dispatch _ores_mobile_dispatch_copy)
+all_symbols=$(printf '%s\n' _ores_mobile_abi_version _ores_mobile_copy_message _ores_mobile_clear_message _ores_mobile_handoff_message _ores_mobile_dispatch _ores_mobile_dispatch_copy)
 archives=("$tmp/archives/device.a" "$tmp/archives/simulator-arm64.a" "$tmp/archives/simulator-x86_64.a")
 for a in "${archives[@]}"; do
   printf dummy >"$a"
@@ -61,4 +61,4 @@ MOCK_NM_FAIL=1 expect_failure 'nm subprocess failure' bash "$gate" "${archives[@
 rm -f "${archives[2]}"
 expect_failure 'missing simulator archive' bash "$gate" "${archives[@]}"
 expect_failure 'wrong archive count' bash "$gate" "${archives[0]}" "${archives[1]}"
-echo 'PASS: complete C ABI v1 symbol gate and 25 deterministic rejections (synthetic nm; not iOS execution)'
+echo 'PASS: complete C ABI v1 symbol gate and 28 deterministic rejections (synthetic nm; not iOS execution)'
