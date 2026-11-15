@@ -11,6 +11,15 @@ static int overlaps_count(const void *data, size_t length, const size_t *written
     return a >= b ? a - b < sizeof(*written) : b - a < length;
 }
 
+static int overlaps_region(const void *left, size_t left_len,
+                           const void *right, size_t right_len) {
+    uintptr_t a, b;
+    if (left == NULL || right == NULL || left_len == 0 || right_len == 0) return 0;
+    a = (uintptr_t)left;
+    b = (uintptr_t)right;
+    return a >= b ? a - b < right_len : b - a < left_len;
+}
+
 static int valid_status(ores_mobile_status status) {
     return status >= ORES_MOBILE_OK && status <= ORES_MOBILE_BUFFER_TOO_SMALL;
 }
@@ -43,6 +52,29 @@ ores_mobile_status ores_mobile_clear_message(uint8_t *buffer, size_t length) {
         return ORES_MOBILE_INVALID_ARGUMENT;
     erase = buffer;
     for (i = 0; i < length; ++i) erase[i] = 0u;
+    return ORES_MOBILE_OK;
+}
+
+/* Source is wiped on successful transfer. Rejected calls preserve input. */
+ores_mobile_status ores_mobile_handoff_message(
+    uint8_t *source, size_t length, uint8_t *destination,
+    size_t capacity, size_t *written) {
+    if (written == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    if (overlaps_count(source, length, written) ||
+        overlaps_count(destination, capacity, written))
+        return ORES_MOBILE_INVALID_ARGUMENT;
+    *written = 0u;
+    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES) return ORES_MOBILE_MESSAGE_TOO_LARGE;
+    if (length != 0u && source == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    if (length > capacity) return ORES_MOBILE_BUFFER_TOO_SMALL;
+    if (length != 0u && destination == NULL) return ORES_MOBILE_INVALID_ARGUMENT;
+    if (overlaps_region(source, length, destination, length))
+        return ORES_MOBILE_INVALID_ARGUMENT;
+    if (length != 0u) {
+        memcpy(destination, source, length);
+        (void)ores_mobile_clear_message(source, length);
+    }
+    *written = length;
     return ORES_MOBILE_OK;
 }
 
