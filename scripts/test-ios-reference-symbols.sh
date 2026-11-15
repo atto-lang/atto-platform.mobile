@@ -16,7 +16,7 @@ cat "$MOCK_SYMBOL_DIR/$(basename "$archive").txt"
 MOCK
 chmod +x "$tmp/bin/xcrun"
 export PATH="$tmp/bin:$PATH" MOCK_SYMBOL_DIR="$tmp/symbols"
-all_symbols=$(printf '%s\n' _ores_mobile_abi_version _ores_mobile_copy_message _ores_mobile_clear_message _ores_mobile_handoff_message _ores_mobile_dispatch _ores_mobile_dispatch_copy)
+all_symbols=$(printf '%s\n' _ores_mobile_abi_version _ores_mobile_copy_message _ores_mobile_clear_message _ores_mobile_messages_equal _ores_mobile_handoff_message _ores_mobile_dispatch _ores_mobile_dispatch_copy)
 archives=("$tmp/archives/device.a" "$tmp/archives/simulator-arm64.a" "$tmp/archives/simulator-x86_64.a")
 for a in "${archives[@]}"; do
   printf dummy >"$a"
