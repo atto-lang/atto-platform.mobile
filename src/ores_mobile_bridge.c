@@ -78,6 +78,18 @@ ores_mobile_status ores_mobile_handoff_message(
     return ORES_MOBILE_OK;
 }
 
+int ores_mobile_messages_equal(const uint8_t *left, const uint8_t *right,
+                               size_t length) {
+    size_t i;
+    unsigned difference = 0u;
+    if (length > ORES_MOBILE_MAX_MESSAGE_BYTES ||
+        (length != 0u && (left == NULL || right == NULL)))
+        return -1;
+    for (i = 0u; i < length; ++i)
+        difference |= (unsigned)(left[i] ^ right[i]);
+    return difference == 0u ? 1 : 0;
+}
+
 ores_mobile_status ores_mobile_dispatch(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length) {
