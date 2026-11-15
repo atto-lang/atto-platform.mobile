@@ -61,4 +61,4 @@ MOCK_NM_FAIL=1 expect_failure 'nm subprocess failure' bash "$gate" "${archives[@
 rm -f "${archives[2]}"
 expect_failure 'missing simulator archive' bash "$gate" "${archives[@]}"
 expect_failure 'wrong archive count' bash "$gate" "${archives[0]}" "${archives[1]}"
-echo 'PASS: complete C ABI v1 symbol gate and 28 deterministic rejections (synthetic nm; not iOS execution)'
+echo 'PASS: complete C ABI v1 symbol gate and 31 deterministic rejections (synthetic nm; not iOS execution)'
