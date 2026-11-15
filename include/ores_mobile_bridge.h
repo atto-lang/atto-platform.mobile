@@ -39,6 +39,15 @@ ores_mobile_status ores_mobile_clear_message(uint8_t *buffer, size_t length);
 
 /* Calls handler synchronously; does not enqueue, spawn or schedule actors.
  * Callback results outside the declared status enum fail closed as INVALID_ARGUMENT. */
+/* Transfer a mutable source buffer into disjoint caller-owned destination
+ * storage, then CPU-scrub exactly length source bytes on success.
+ * Source and destination may NOT overlap; the written count must not alias
+ * source or destination storage. Rejections never wipe source/destination.
+ * Does not erase other copies or guarantee device-level erasure. */
+ores_mobile_status ores_mobile_handoff_message(
+    uint8_t *source, size_t length, uint8_t *destination,
+    size_t capacity, size_t *written);
+
 ores_mobile_status ores_mobile_dispatch(
     ores_mobile_handler handler, void *context,
     const uint8_t *data, size_t length);
