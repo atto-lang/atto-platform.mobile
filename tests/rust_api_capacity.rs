@@ -29,12 +29,12 @@ fn planned_scratch_matches_real_scrubbed_dispatch() {
         let source: Vec<u8> = (0..length).map(|i| ((i * 17 + 3) % 251) as u8).collect();
         let mut scratch = vec![0xa5u8; length + 3];
         let mut required = usize::MAX;
-        assert_eq!(unsafe { ores_mobile_scratch_requirement(length, &mut required) }, OK);
+        assert_eq!(unsafe { ores_mobile_scratch_requirement(length, &mut required) }, 0);
         assert_eq!(required, length);
         let mut state = CallbackState { called: 0, valid: true };
         assert_eq!(unsafe { ores_mobile_dispatch_copy(Some(snapshot_callback),
             (&mut state as *mut CallbackState).cast(), source.as_ptr(), length,
-            scratch.as_mut_ptr(), scratch.len()) }, OK);
+            scratch.as_mut_ptr(), scratch.len()) }, 0);
         assert!(state.valid);
         assert_eq!(state.called, 1);
         assert!(scratch[..length].iter().all(|byte| *byte == 0));
@@ -44,7 +44,7 @@ fn planned_scratch_matches_real_scrubbed_dispatch() {
     let mut scratch = [0xa5u8; 4];
     assert_eq!(unsafe { ores_mobile_dispatch_copy(Some(snapshot_callback),
         (&mut state as *mut CallbackState).cast(), scratch.as_ptr(), 65537,
-        scratch.as_mut_ptr(), scratch.len()) }, TOO_LARGE);
+        scratch.as_mut_ptr(), scratch.len()) }, 2);
     assert_eq!(state.called, 0);
     assert_eq!(scratch, [0xa5u8; 4]);
 }
