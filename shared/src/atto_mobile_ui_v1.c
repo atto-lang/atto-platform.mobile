@@ -1,5 +1,6 @@
 #include "../include/atto_mobile_ui_v1.h"
 #include <stdint.h>
+#include <stddef.h>
 
 atto_mobile_ui_decision_v1 atto_mobile_ui_preflight_v1(
     const atto_mobile_ui_intent_v1 *i,
