@@ -41,3 +41,22 @@ This is a statement of intended project responsibilities. Consult source files a
 AttoLang is the canonical project name; new source, examples and documentation use `.atto` and the `atto-lang` repository organization. This README defines scope, not feature readiness.
 
 **Acceptance:** name exact source SHA/tree, runtime/toolchain, positive and negative checks and execution receipt before claiming support. Host-only tests and empty CI steps do not prove guest execution.
+
+## Mobile runtime implementation seed
+
+The platform-neutral value-only C UI admission contract is in
+[`shared/include/atto_mobile_ui_v1.h`](shared/include/atto_mobile_ui_v1.h),
+with implementation and negative tests under `shared/src` and `shared/tests`.
+Run `make test` on a C11 host. This verifies **only** scalar preflight checks:
+it does not execute an AttoLang guest, UI renderer, actor scheduler or mobile device.
+
+The `ios/` tree separates runtime, Objective-C/C ABI, Swift transport,
+UIKit, future SwiftUI, actor-to-main-thread admission, lifecycle,
+permissions, packaging and device tests. `android/` documents the JNI/
+Kotlin native path and proposed ART alternative. Do not infer production
+readiness from directory creation.
+
+AttoXP integration PRs: [iOS #16](https://github.com/atto-xp/atto-xp-ios/pull/16),
+[Android #15](https://github.com/atto-xp/atto-xp-android/pull/15),
+[conformance #22](https://github.com/atto-xp/atto-xp-conformance/pull/22),
+[docs #10](https://github.com/atto-xp/atto-xp-docs/pull/10).
