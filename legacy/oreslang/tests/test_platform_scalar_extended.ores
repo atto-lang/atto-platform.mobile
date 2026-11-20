@@ -1,0 +1,30 @@
+// TestSuite reference-model assertions only; not native mobile API execution.
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, run_suite, require_success from "ores.std/testing";
+
+fnc image_stride_valid(int width, int stride): bool { return width > 0 && stride >= width && stride <= 16384; }
+
+fnc contiguous_stride(): TestOutcome {
+  return expect_true(image_stride_valid(20,20), "contiguous_stride scalar reference failed");
+}
+fnc aligned_stride(): TestOutcome {
+  return expect_true(image_stride_valid(20,24), "aligned_stride scalar reference failed");
+}
+fnc negative_stride(): TestOutcome {
+  return expect_true(!image_stride_valid(20,-1), "negative_stride scalar reference failed");
+}
+fnc undersized_stride(): TestOutcome {
+  return expect_true(!image_stride_valid(20,19), "undersized_stride scalar reference failed");
+}
+pub routine main(): void {
+  val TestSuite suite = new TestSuite("platform-mobile-extended", arr[
+    new TestCase("contiguous_stride", contiguous_stride, false, ""),
+    new TestCase("aligned_stride", aligned_stride, false, ""),
+    new TestCase("negative_stride", negative_stride, false, ""),
+    new TestCase("undersized_stride", undersized_stride, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}

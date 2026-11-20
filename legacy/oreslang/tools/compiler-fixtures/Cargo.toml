@@ -1,0 +1,12 @@
+[package]
+name = "oreslang-mobile-compiler-fixtures"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+real-compiler = []
+
+[[test]]
+name = "compiler_acceptance"
+path = "tests/compiler_acceptance.rs"

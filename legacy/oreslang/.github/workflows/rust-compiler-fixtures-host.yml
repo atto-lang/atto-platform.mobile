@@ -1,0 +1,29 @@
+name: Rust compiler fixture admission (host-only)
+on:
+  pull_request:
+    paths:
+      - 'tools/compiler-fixtures/**'
+      - 'tests/compiler/**'
+      - 'tests/test_platform_scalar_harness.ores'
+      - 'tests/test_platform_scalar_extended.ores'
+      - '.github/workflows/rust-compiler-fixtures-host.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust-host-admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate exact checkout head
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Run Rust host admission tests (NOT a guest compiler proof)
+        env:
+          CARGO_NET_OFFLINE: 'true'
+        run: cargo test --offline --manifest-path tools/compiler-fixtures/Cargo.toml --all-targets

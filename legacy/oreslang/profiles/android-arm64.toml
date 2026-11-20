@@ -1,0 +1,9 @@
+# Specification only; LLVM backend target lowering not yet demonstrated.
+profile = "mobile-android-aot"
+triple = "aarch64-linux-android"
+android_abi = "arm64-v8a"
+execution = "aot"
+jit = false
+host_abi = "ores_mobile_v1"
+actors = "not-implemented"
+native_artifact = "shared-library"
