@@ -11,6 +11,7 @@ required=(
   _ores_mobile_abi_version
   _ores_mobile_copy_message
   _ores_mobile_clear_message
+  _ores_mobile_messages_equal
   _ores_mobile_handoff_message
   _ores_mobile_dispatch
   _ores_mobile_dispatch_copy
