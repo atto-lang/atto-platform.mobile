@@ -43,13 +43,12 @@ xcodebuild -create-xcframework \
   -library "$stage/simulator/libores_mobile_bridge.a" -headers "$stage/headers" \
   -output "$stage/OresMobileBridge.xcframework"
 test -s "$stage/OresMobileBridge.xcframework/Info.plist"
-# Check expected public C entrypoints in both archives before publishing.
-for archive in "$stage/device/libores_mobile_bridge.a" "$stage/simulator/libores_mobile_bridge.a"; do
-  nm_output="$(xcrun nm -g "$archive")"
-  grep -q '_ores_mobile_abi_version' <<<"$nm_output"
-  grep -q '_ores_mobile_copy_message' <<<"$nm_output"
-  grep -q '_ores_mobile_dispatch' <<<"$nm_output"
-done
+# Verify the complete, defined C ABI on EACH thin architecture slice.
+# Matching a substring or inspecting only a fat simulator archive can give false passes.
+bash "$root/scripts/verify-ios-reference-symbols.sh" \
+  "$stage/device/libores_mobile_bridge.a" \
+  "$stage/simulator-arm64/libores_mobile_bridge.a" \
+  "$stage/simulator-x86_64/libores_mobile_bridge.a"
 # Do not replace a previous successful bundle on build/check failure.
 # The destination is generated output, never arbitrary user-provided source.
 target="$out/OresMobileBridge.xcframework"

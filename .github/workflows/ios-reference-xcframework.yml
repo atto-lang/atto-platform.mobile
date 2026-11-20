@@ -23,6 +23,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Verify symbol gate negative fixtures (synthetic, no Xcode)
+        run: bash scripts/test-ios-reference-symbols.sh
       - name: Build real iOS device and dual-arch simulator reference library
         shell: bash
         run: |
