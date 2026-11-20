@@ -37,7 +37,7 @@ public final class OresMobileNativeTest {
     public static void main(String[] args) {
         OresMobileNative nativeBridge = new OresMobileNative();
         require(nativeBridge.abiVersion() == 1, "wrong native ABI version");
-        for (int n : new int[]{0, 1, 2, 7, 8, 255, 256, 1024, 4096, 65535, 65536}) {
+        for (int n : new int[]{0, 1, 2, 7, 8, 255, 256, 1023, 1024, 1025, 4096, 65535, 65536}) {
             roundTrip(nativeBridge, n);
         }
         for (int n = 0; n < 128; n++) roundTrip(nativeBridge, n * 31 % 4097);

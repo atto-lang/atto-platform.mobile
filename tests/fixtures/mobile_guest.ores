@@ -1,0 +1,4 @@
+// Real LLVM/JNI conformance guest: no actor/runtime claims.
+pub fnc mobile_guest_step(int value): int {
+    return value + 1;
+}

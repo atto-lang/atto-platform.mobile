@@ -3,7 +3,12 @@
 #include <stdlib.h>
 #include "ores_mobile_bridge.h"
 
-/* JNI example only, not the Oreslang actor runtime. */
+/* JNI example only, not the Oreslang actor runtime.
+ * Keep the small synchronous native copy out of malloc; still copy into
+ * caller-owned Java result and zero the temporary stack or heap bytes. */
+#define ORES_MOBILE_JNI_STACK_COPY_LIMIT 1024u
+_Static_assert(ORES_MOBILE_JNI_STACK_COPY_LIMIT <= ORES_MOBILE_MAX_MESSAGE_BYTES,
+               "JNI stack-copy limit must fit the public message bound");
 static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
     jclass type = (*env)->FindClass(env, name);
     if (type != NULL) {
@@ -12,12 +17,12 @@ static void throw_by_name(JNIEnv *env, const char *name, const char *message) {
     }
 }
 /* Own native bytes only for the synchronous JNI call. All owned copies,
- * including failed JNI region reads, are wiped before returning to malloc.
+ * including failed JNI region reads, are wiped before release or return.
  * The JVM input/output arrays remain owned by Java and are not scrubbed. */
-static void clear_and_free(uint8_t *owned, size_t length) {
+static void clear_and_release(uint8_t *owned, size_t length, uint8_t *stack_copy) {
     if (owned != NULL) {
         (void)ores_mobile_clear_message(owned, length);
-        free(owned);
+        if (owned != stack_copy) free(owned);
     }
 }
 JNIEXPORT jint JNICALL
@@ -29,6 +34,7 @@ JNIEXPORT jbyteArray JNICALL
 Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
     JNIEnv *env, jobject self, jbyteArray input) {
     jsize count;
+    uint8_t stack_copy[ORES_MOBILE_JNI_STACK_COPY_LIMIT];
     uint8_t *owned = NULL;
     size_t written = 0;
     ores_mobile_status status;
@@ -47,27 +53,35 @@ Java_dev_oreslang_mobile_OresMobileNative_copyMessage(
 
     /* Region copying avoids pinning a JVM array across allocation/processing. */
     if (count != 0) {
-        owned = (uint8_t *)malloc((size_t)count);
+        if ((size_t)count <= sizeof stack_copy)
+            owned = stack_copy;
+        else
+            owned = (uint8_t *)malloc((size_t)count);
         if (owned == NULL) {
             throw_by_name(env, "java/lang/OutOfMemoryError", "native buffer allocation failed");
             return NULL;
         }
         (*env)->GetByteArrayRegion(env, input, 0, count, (jbyte *)owned);
         if ((*env)->ExceptionCheck(env)) {
-            clear_and_free(owned, (size_t)count);
+            clear_and_release(owned, (size_t)count, stack_copy);
             return NULL;
         }
     }
     status = ores_mobile_copy_message(
         owned, (size_t)count, owned, (size_t)count, &written);
     if (status != ORES_MOBILE_OK) {
-        clear_and_free(owned, (size_t)count);
+        clear_and_release(owned, (size_t)count, stack_copy);
         throw_by_name(env, "java/lang/IllegalStateException", "native ABI copy failed");
         return NULL;
     }
     output = (*env)->NewByteArray(env, (jsize)written);
-    if (output != NULL && written != 0)
+    if (output != NULL && written != 0) {
         (*env)->SetByteArrayRegion(env, output, 0, (jsize)written, (const jbyte *)owned);
-    clear_and_free(owned, (size_t)count);
-    return output; /* JVM exceptions from allocation or copying propagate. */
+        if ((*env)->ExceptionCheck(env)) {
+            clear_and_release(owned, (size_t)count, stack_copy);
+            return NULL;
+        }
+    }
+    clear_and_release(owned, (size_t)count, stack_copy);
+    return output; /* allocation exceptions propagate with NULL. */
 }

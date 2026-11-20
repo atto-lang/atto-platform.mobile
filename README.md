@@ -47,6 +47,21 @@ erase the original/result Java arrays, copy-on-write snapshots, allocator
 metadata, crash dumps, device memory or other copies; it is not an iOS/Android
 actor isolation or secure-erasure certification.
 
+## Bounded Android JNI stack fast path
+
+The JNI reference bridge handles payloads of 1–1,024 bytes using a
+fixed 1-KiB native stack temporary instead of allocating a temporary
+native heap buffer. Larger admitted payloads (up to 64 KiB) still use
+`malloc`. Both paths are CPU-scrubbed before release/return, even
+after JNI region-copy exceptions or a native ABI error. The Java input
+and result arrays remain Java-managed allocations, so this is **not**
+a zero-allocation request path or a guest actor heap.
+
+The host Java/JNI test includes the 1,023/1,024/1,025-byte boundary,
+maximum payload, rejected oversized/null messages, and post-error
+recovery. Stack consumption, Android ART behavior, latency and device
+support still require device/NDK verification.
+
 ## Upstream integration
 
 Compiler: [oreslang-source.llvm](https://github.com/ores-truffle-oreslang/oreslang-source.llvm). The LLVM source subset currently lacks general actor lowering and runtime parity; do not treat this repository as proof otherwise.
