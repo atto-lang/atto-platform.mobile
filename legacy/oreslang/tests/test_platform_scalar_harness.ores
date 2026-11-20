@@ -1,0 +1,28 @@
+// Pure Oreslang scalar reference models; these do not call platform native APIs.
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, run_suite, require_success from "ores.std/testing";
+
+fnc index_in_bounds(int index, int length): bool {
+  return length > 0 && index >= 0 && index < length;
+}
+
+fnc zero_based_bridge_index(): TestOutcome {
+  return expect_true(index_in_bounds(0, 1) && index_in_bounds(2, 3), "zero_based_bridge_index reference assertion failed");
+}
+fnc negative_bridge_index_rejected(): TestOutcome {
+  return expect_true(!index_in_bounds(-1, 3) && !index_in_bounds(-5, 1), "negative_bridge_index_rejected reference assertion failed");
+}
+fnc out_of_bounds_bridge_index_rejected(): TestOutcome {
+  return expect_true(!index_in_bounds(1, 1) && !index_in_bounds(0, 0), "out_of_bounds_bridge_index_rejected reference assertion failed");
+}
+pub routine main(): void {
+  val TestSuite suite = new TestSuite("mobile-scalar-reference", arr[
+    new TestCase("zero_based_bridge_index", zero_based_bridge_index, false, ""),
+    new TestCase("negative_bridge_index_rejected", negative_bridge_index_rejected, false, ""),
+    new TestCase("out_of_bounds_bridge_index_rejected", out_of_bounds_bridge_index_rejected, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}

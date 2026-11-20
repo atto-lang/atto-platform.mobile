@@ -1,0 +1,42 @@
+name: iOS XCFramework reference ABI
+on:
+  pull_request:
+  push:
+    branches: [main, 'feat/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-reference-xcframework:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact Git head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/verify_raw_checkout.py
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -q
+      - name: Verify symbol gate negative fixtures (synthetic, no Xcode)
+        run: bash scripts/test-ios-reference-symbols.sh
+      - name: Build real iOS device and dual-arch simulator reference library
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          bash scripts/build-xcframework.sh
+          test -s build-ios/OresMobileBridge.xcframework/Info.plist
+          find build-ios/OresMobileBridge.xcframework -name '*.a' -type f -print
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: success()
+        with:
+          name: ios-c-reference-xcframework-only
+          path: build-ios/OresMobileBridge.xcframework/
+          if-no-files-found: error

@@ -1,0 +1,9 @@
+# Specification only; packaging and iOS code signing are not implemented.
+profile = "mobile-ios-aot"
+triple = "arm64-apple-ios"
+execution = "aot"
+jit = false
+hot_code_loading = false
+host_abi = "ores_mobile_v1"
+actors = "not-implemented"
+native_artifact = "static-library"

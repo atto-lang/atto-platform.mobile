@@ -1,0 +1,71 @@
+> **AI agent instructions (organization-wide):** Before working on code, issues, or pull requests, read and follow the [organization `AGENTS.md`](https://github.com/ores-truffle-oreslang/.github/blob/main/AGENTS.md), including its **merge-first stealth-development policy**. Honor any repository-local `AGENTS.md`, explicit holds, and GitHub-enforced rules.
+
+# OresMobile
+
+## AttoLang migration and current specification (2026-11-18)
+
+**AttoLang** is the current language name, formerly **Oreslang**. This `ores-truffle-oreslang/oreslang-platform.mobile` checkout retains its historical name and documentation. The AttoLang-named destination for new related work is **[atto-lang/atto-platform.mobile](https://github.com/atto-lang/atto-platform.mobile)**. These are distinct GitHub repositories unless an exact verified migration establishes otherwise; do not assume identical code, issues, PRs, releases or test status.
+
+**[atto-spec](https://github.com/atto-lang/atto-spec)** is the canonical normative language specification; old Oreslang-named specifications and examples are historical, not an independent authority. Use [atto-platform-conformance](https://github.com/atto-lang/atto-platform-conformance) for portable executable conformance, [atto-common-source](https://github.com/atto-lang/atto-common-source) for portable `.atto` libraries, and backend-specific `atto-source.*` for compiler/runtime implementations. The design direction includes `snake_case` methods, `borrow!`/`take!`/`share!`/`copy!`/`copy!!`, [implicit borrowing](https://github.com/atto-lang/atto-spec/blob/main/language/implicit-argument-borrow-v1.md), [file/module constants with one-time nonthrowing environment reads](https://github.com/atto-lang/atto-spec/blob/main/language/file-module-const-v1.md) and the [bitwise/stream operator proposal](https://github.com/atto-lang/atto-spec/blob/main/language/bitwise-and-stream-operators-v1.md). **These are targets, not proof that this checkout executes them.**
+
+Existing `.ores`, `oreslang-*` tool commands, package/ABI names and fixture syntax below document legacy compatibility; only replace them after real target-specific compiler/runtime tests. Avoid Python tooling/tests in AttoLang projects; prefer Rust for supporting tooling. For backend feature claims, require exact source SHA/tree, target/toolchain, actual positive and negative guest execution, and explicit passed/failed/unsupported/not-executed status. Host-only and zero-step CI runs do not establish parity.
+
+Mobile platform integration for **Oreslang**, targeting Android and iOS through the native-AOT toolchain.
+
+> **Status: bootstrap.** This repository currently provides a small, portable C ABI boundary, host tests, and platform target specifications. It does **not** yet compile Oreslang apps, ship an actor runtime, provide JNI/Swift packages, or claim iOS/Android target parity.
+
+## Scope
+
+- Android `arm64-v8a`: eventually build an AOT native library for apps and expose a versioned C ABI.
+- iOS `arm64`: eventually build an AOT static library/XCFramework for Swift or Objective-C.
+- App integrations (Kotlin, Swift, Flutter) must use explicit ownership and message copies across the ABI.
+- App Store/iOS profile is **static AOT only**; do not enable runtime JIT or network-fetched executable code.
+
+## Quick start (host ABI conformance)
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The current build compiles and tests **only the host bridge C reference**, not the Oreslang compiler. See `docs/ARCHITECTURE.md`, `docs/TARGET_CONTRACT.md`, and `profiles/`.
+
+## Copy-isolated dispatch
+
+`ores_mobile_dispatch` borrows the caller's original input. Use
+`ores_mobile_dispatch_copy` when a synchronous callback needs a separate message
+snapshot: supply an independent scratch buffer with at least `length` bytes.
+The bridge copies before invoking the handler, then scrubs those bytes with
+non-elidable stores on both success and callback failure. It allocates no memory.
+Input and scratch may be adjacent but must not overlap. Rejected calls leave
+scratch untouched. The callback may not retain its borrowed pointer; serialize
+access and keep scratch alive until dispatch returns. This adds a host ownership
+boundary, not a queued actor scheduler or device-level memory protection.
+
+## JNI temporary-memory hygiene
+
+The Android JNI `copyMessage` bridge copies a checked (at most 64 KiB)
+Java array into temporary native-owned bytes. Before `free`, it now calls
+`ores_mobile_clear_message` on **every** post-allocation exit path, including
+JNI exceptions and native ABI errors. The bounded wipe uses volatile character
+stores. Host CTest checks zeroization and rejected-argument no-write behavior;
+the Java JNI smoke checks output equality and post-error recovery.
+
+This limits residual bytes in the temporary native allocation. It does **not**
+erase the original/result Java arrays, copy-on-write snapshots, allocator
+metadata, crash dumps, device memory or other copies; it is not an iOS/Android
+actor isolation or secure-erasure certification.
+
+## Upstream integration
+
+Compiler: [oreslang-source.llvm](https://github.com/ores-truffle-oreslang/oreslang-source.llvm). The LLVM source subset currently lacks general actor lowering and runtime parity; do not treat this repository as proof otherwise.
+
+## iOS XCFramework reference target
+
+On macOS with Xcode, `bash scripts/build-xcframework.sh` packages a portable
+C reference bridge for device ARM64 and simulator ARM64/x86_64, including the
+C header and module map. Source-local macOS CI is required to execute this
+build. This is **not** an Oreslang compiler/native actor runtime, not a Swift
+SDK, and not yet tested on an iOS device. See `ios/README.md`.
+
