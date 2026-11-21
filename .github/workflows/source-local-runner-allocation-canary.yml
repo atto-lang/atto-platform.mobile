@@ -18,7 +18,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${GITHUB_REPOSITORY}" = 'ores-truffle-oreslang/oreslang-platform.mobile'
+          test -n "${RUNNER_NAME:-}"
+          test -n "${RUNNER_OS:-}"
+          test -n "${GITHUB_RUN_ID:-}"
+          test -n "${GITHUB_RUN_ATTEMPT:-}"
+          test -n "${GITHUB_SHA:-}"
+          test "${GITHUB_REPOSITORY}" = 'atto-lang/atto-platform.mobile'
           printf 'RUNNER_ALLOCATED repo=%s runner_os=%s run_id=%s sha=%s\n' \
             "${GITHUB_REPOSITORY}" "${RUNNER_OS}" "${GITHUB_RUN_ID}" "${GITHUB_SHA}"
           printf 'SOURCE_CHECKOUT=false SOURCE_EXPORT=false TESTS_EXECUTED=false\n'
@@ -31,7 +36,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${GITHUB_REPOSITORY}" = 'ores-truffle-oreslang/oreslang-platform.mobile'
+          test -n "${RUNNER_NAME:-}"
+          test -n "${RUNNER_OS:-}"
+          test -n "${GITHUB_RUN_ID:-}"
+          test -n "${GITHUB_RUN_ATTEMPT:-}"
+          test -n "${GITHUB_SHA:-}"
+          test "${GITHUB_REPOSITORY}" = 'atto-lang/atto-platform.mobile'
           test "${RUNNER_OS}" = 'macOS'
           printf 'RUNNER_ALLOCATED repo=%s runner_os=%s run_id=%s sha=%s\n' \
             "${GITHUB_REPOSITORY}" "${RUNNER_OS}" "${GITHUB_RUN_ID}" "${GITHUB_SHA}"
