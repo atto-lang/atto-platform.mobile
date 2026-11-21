@@ -5,7 +5,7 @@ import unittest
 from check_mobile_branch_protection import validate, REQUIRED_CHECKS, GITHUB_ACTIONS_APP_ID
 
 SHA = "a" * 40
-REPO = {"id": 1419865409, "full_name": "ores-truffle-oreslang/oreslang-platform.mobile",
+REPO = {"id": 1448719611, "full_name": "atto-lang/atto-platform.mobile",
         "private": True, "visibility": "private", "archived": False, "disabled": False}
 BRANCH = {"name": "main", "protected": True, "commit": {"sha": SHA}}
 PROTECTION = {
