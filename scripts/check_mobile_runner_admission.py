@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-REPO = "ores-truffle-oreslang/oreslang-platform.mobile"
+REPO = "atto-lang/atto-platform.mobile"
 WORKFLOW = "Source-local runner allocation canary (metadata only)"
 REQUIRED = {"allocation-only": "ubuntu-24.04", "allocation-macos-only": "macos-15"}
 PROOF_STEP = {
