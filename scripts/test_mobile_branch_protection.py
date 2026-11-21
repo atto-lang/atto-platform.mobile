@@ -41,6 +41,11 @@ class ProtectionAuditTests(unittest.TestCase):
     def test_wrong_repo_name(self):
         self.assert_reject(lambda r,b,p: r.update(full_name="attacker/private"))
 
+    def test_legacy_repository_identity_rejected(self):
+        self.assert_reject(lambda r,b,p: r.update(
+            id=1419865409,
+            full_name="ores-truffle-oreslang/oreslang-platform.mobile"))
+
     def test_visibility_flip(self):
         self.assert_reject(lambda r,b,p: r.update(visibility="public"))
 
