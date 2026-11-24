@@ -1,0 +1,46 @@
+name: Raw checkout physical-entry adversarial tests (host-only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/verify_raw_checkout.py'
+      - 'tests/test_raw_checkout_adversarial_edges.py'
+      - '.github/workflows/raw-checkout-adversarial-edges.yml'
+  push:
+    paths:
+      - 'scripts/verify_raw_checkout.py'
+      - 'tests/test_raw_checkout_adversarial_edges.py'
+      - '.github/workflows/raw-checkout-adversarial-edges.yml'
+permissions:
+  contents: read
+jobs:
+  physical-checkout-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Confirm original source head
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Verify physical source checkout before executing repository tests
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_raw_checkout.py
+      - name: Execute complete Linux checkout security regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 --version
+          git --version
+          python3 -m unittest discover -s tests -p 'test_verify_raw_checkout.py' -v
+          python3 -m unittest discover -s tests -p 'test_raw_checkout_adversarial_edges.py' -v
