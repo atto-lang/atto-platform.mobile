@@ -2,17 +2,17 @@
 """Offline negative matrix for the source-free GitHub runner metadata verifier."""
 import copy
 import unittest
-from check_mobile_runner_admission import validate, REPO, WORKFLOW, PROOF_STEP
+from check_mobile_runner_admission import validate, REPO, REPO_ID, WORKFLOW, PROOF_STEP
 
 SHA = "a" * 40
-RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO},
+RUN = {"id": 81, "run_attempt": 2, "name": WORKFLOW, "repository": {"full_name": REPO, "id": REPO_ID},
        "head_sha": SHA, "status": "completed", "conclusion": "success"}
 
 
 def job(name, label):
     return {"id": 200 if name == "allocation-only" else 201,
             "run_id": 81, "run_attempt": 2, "name": name,
-            "runner_id": 123456, "labels": [label], "status": "completed", "conclusion": "success",
+            "runner_id": 123456, "runner_name": "GitHub Actions Runner", "labels": [label], "status": "completed", "conclusion": "success",
             "steps": [{"name": PROOF_STEP[name], "status": "completed", "conclusion": "success",
                        "started_at": "2026-10-29T03:00:00Z", "completed_at": "2026-10-29T03:00:01Z"}]}
 
@@ -67,6 +67,25 @@ class RunnerAdmissionTests(unittest.TestCase):
 
     def test_untrusted_repo(self):
         d = copy.deepcopy(RUN); d["repository"]["full_name"] = "elsewhere/repo"; self.check_reject(run=d)
+
+    def test_legacy_repository_name_denied(self):
+        d = copy.deepcopy(RUN)
+        d["repository"]["full_name"] = "ores-truffle-oreslang/oreslang-platform.mobile"
+        self.check_reject(run=d)
+
+    def test_wrong_immutable_repository_id(self):
+        for value in (1419865409, True, "1448719611", None):
+            d = copy.deepcopy(RUN)
+            d["repository"]["id"] = value
+            with self.subTest(value=value):
+                self.check_reject(run=d)
+
+    def test_missing_named_runner(self):
+        for value in (None, "", "   ", 123):
+            d = copy.deepcopy(JOBS)
+            d["jobs"][0]["runner_name"] = value
+            with self.subTest(value=value):
+                self.check_reject(jobs=d)
 
     def test_wrong_head(self):
         d = copy.deepcopy(RUN); d["head_sha"] = "b" * 40; self.check_reject(run=d)

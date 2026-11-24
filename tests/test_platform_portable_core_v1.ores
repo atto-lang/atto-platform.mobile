@@ -1,0 +1,50 @@
+// Portable scalar language-contract candidate shared across all seven oreslang-platform.* repositories.
+// SOURCE-ONLY: passing a text/digest gate does not prove guest execution or any target API.
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, run_suite, require_success from "ores.std/testing";
+
+fnc index_is_valid(int index, int length): bool {
+  return index >= 0 && length > 0 && index < length;
+}
+
+fnc select_signed(int number): int {
+  if number > 0; do
+    return 1;
+  else
+    return -1;
+  fi
+}
+
+fnc precedence_case(): TestOutcome {
+  return expect_true(1 + 3 * 4 == 13 && (1 + 3) * 4 == 16, "precedence_case failed");
+}
+
+fnc sign_and_branch_case(): TestOutcome {
+  return expect_true(select_signed(7) == 1 && select_signed(0) == -1 && select_signed(-7) == -1, "sign_and_branch_case failed");
+}
+
+fnc bounded_index_case(): TestOutcome {
+  return expect_true(index_is_valid(0, 1) && index_is_valid(3, 4) && !index_is_valid(4, 4), "bounded_index_case failed");
+}
+
+fnc reject_invalid_capacity_case(): TestOutcome {
+  return expect_true(!index_is_valid(-1, 8) && !index_is_valid(0, 0) && !index_is_valid(0, -1), "reject_invalid_capacity_case failed");
+}
+
+fnc signed_boolean_case(): TestOutcome {
+  return expect_true((-7 < 0) && !(7 < 0) && (7 >= 7) && (0 != 1), "signed_boolean_case failed");
+}
+
+pub routine main(): void {
+  val TestSuite suite = new TestSuite("platform-portable-core-v1", arr[
+    new TestCase("precedence_case", precedence_case, false, ""),
+    new TestCase("sign_and_branch_case", sign_and_branch_case, false, ""),
+    new TestCase("bounded_index_case", bounded_index_case, false, ""),
+    new TestCase("reject_invalid_capacity_case", reject_invalid_capacity_case, false, ""),
+    new TestCase("signed_boolean_case", signed_boolean_case, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}
