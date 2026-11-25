@@ -10,8 +10,8 @@ import json
 import sys
 from pathlib import Path
 
-SOURCE_NAME = "ores-truffle-oreslang/oreslang-platform.mobile"
-SOURCE_ID = 1419865409
+SOURCE_NAME = "atto-lang/atto-platform.mobile"
+SOURCE_ID = 1448719611
 GITHUB_ACTIONS_APP_ID = 15368
 REQUIRED_CHECKS = frozenset((
     "host (gcc)",

@@ -1,24 +1,5 @@
-# iOS native-AOT integration (experimental reference ABI)
+# iOS target
 
-On macOS with Xcode installed:
+AttoLang guest: LLVM AOT -> signed bundled arm64 machine code -> C ABI -> Swift/UIKit host adapter. Apple APIs are used through audited Objective-C/Swift wrappers, not a JVM. Actor scheduling is distinct from UIKit's main actor. No guest-owned UIKit objects, no downloaded executable feature code, no general JIT. 
 
-```sh
-bash scripts/build-xcframework.sh
-```
-
-This builds a **real iOS XCFramework for the portable C reference bridge**:
-device arm64 plus simulator arm64/x86_64. The bundle includes the versioned
-`ores_mobile_bridge.h` C ABI header and Clang `module.modulemap`.
-The exact-head macOS workflow uses Xcode to compile and package the archives,
-validates their architectures and public C symbol presence, and uploads the
-reference-only bundle as a CI artifact.
-
-`scripts/build-ios.sh` remains available for a single device ARM64 archive.
-Neither script compiles Oreslang sources, exports Oreslang actors, publishes
-an App Store-ready SDK, or proves Android/iOS runtime parity. No Swift package,
-Swift actor binding, code signing, real simulator invocation, device UI tests
-or app-store artifact is included.
-
-The iOS deployment profile disallows JIT and arbitrary hot executable-code
-loading. Future target gates include Oreslang LLVM native AOT object emission,
-actor runtime/ownership ABI, Swift integration and physical-device testing.
+Current AttoXP host and simulator evidence: https://github.com/atto-xp/atto-xp-ios . No physical-device or signing claim. 

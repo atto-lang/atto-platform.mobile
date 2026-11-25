@@ -6,6 +6,8 @@ on:
       - 'tests/compiler/**'
       - 'tests/test_platform_scalar_harness.ores'
       - 'tests/test_platform_scalar_extended.ores'
+      - 'tests/test_platform_portable_core_v1.ores'
+      - 'tests/platform-portable-core-integrity.test.mjs'
       - '.github/workflows/rust-compiler-fixtures-host.yml'
   workflow_dispatch:
 permissions:
@@ -23,6 +25,11 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Verify seven-platform portable baseline (source-only, non-promoting)
+        run: node --test tests/platform-portable-core-integrity.test.mjs
       - name: Run Rust host admission tests (NOT a guest compiler proof)
         env:
           CARGO_NET_OFFLINE: 'true'

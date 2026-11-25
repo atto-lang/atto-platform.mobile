@@ -74,6 +74,14 @@ class MobileCiIntegration(unittest.TestCase):
         self.assertIn("OresMobileBridge.xcframework", job)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", job)
 
+    def test_host_policy_does_not_persist_checkout_credentials(self):
+        text, jobs = job_blocks(".github/workflows/mobile-host-policy.yml")
+        self.assertEqual(set(jobs), {"c11-host"})
+        job = jobs["c11-host"]
+        self.assertIn("actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", job)
+        self.assertIn("persist-credentials: false", job)
+        self.assertIn("github.event.pull_request.head.sha || github.sha", job)
+
     def test_runner_canary_source_free_and_two_os_admission(self):
         text, jobs = job_blocks(".github/workflows/source-local-runner-allocation-canary.yml")
         self.assertEqual(set(jobs), {"allocation-only", "allocation-macos-only"})

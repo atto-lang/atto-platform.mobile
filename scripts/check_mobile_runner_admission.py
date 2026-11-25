@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-REPO = "ores-truffle-oreslang/oreslang-platform.mobile"
+REPO = "atto-lang/atto-platform.mobile"
+REPO_ID = 1448719611
 WORKFLOW = "Source-local runner allocation canary (metadata only)"
 REQUIRED = {"allocation-only": "ubuntu-24.04", "allocation-macos-only": "macos-15"}
 PROOF_STEP = {
@@ -69,7 +70,8 @@ def validate(run, jobs, expected_sha):
     if run.get("name") != WORKFLOW:
         problems.append("wrong workflow name")
     repository = run.get("repository")
-    if not isinstance(repository, dict) or repository.get("full_name") != REPO:
+    if (not isinstance(repository, dict) or repository.get("full_name") != REPO or
+            type(repository.get("id")) is not int or repository.get("id") != REPO_ID):
         problems.append("wrong source repository")
     if run.get("head_sha") != expected_sha:
         problems.append("wrong source head SHA")
@@ -106,6 +108,8 @@ def validate(run, jobs, expected_sha):
         runner = job.get("runner_id")
         if type(runner) is not int or runner <= 0:
             problems.append(f"{name}: no admitted runner")
+        if not isinstance(job.get("runner_name"), str) or not job["runner_name"].strip():
+            problems.append(f"{name}: no named runner")
         if job.get("status") != "completed" or job.get("conclusion") != "success":
             problems.append(f"{name}: job not completed successfully")
         steps = job.get("steps")
