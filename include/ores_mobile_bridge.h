@@ -62,6 +62,9 @@ ores_mobile_status ores_mobile_dispatch_copy(
     const uint8_t *data, size_t length,
     uint8_t *scratch, size_t capacity);
 
+/* Size-only scratch planning; no payload reads or callback invocation. */
+ores_mobile_status ores_mobile_scratch_requirement(size_t length, size_t *required);
+
 #ifdef __cplusplus
 }
 #endif

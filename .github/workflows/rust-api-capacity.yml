@@ -1,0 +1,20 @@
+name: Rust FFI capacity contract
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  rust-ffi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Compile reference ABI and run Rust tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude -c src/ores_mobile_bridge.c -o "$RUNNER_TEMP/abi.o"
+          rustc --edition=2021 --test tests/rust_api_capacity.rs -C "link-arg=$RUNNER_TEMP/abi.o" -o "$RUNNER_TEMP/abi_contract"
+          "$RUNNER_TEMP/abi_contract" --nocapture
