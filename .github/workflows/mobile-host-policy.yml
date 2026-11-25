@@ -1,0 +1,29 @@
+name: Mobile host policy (not guest/device)
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  c11-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check exact head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: C11 host-only admission tests with sanitizers
+        env:
+          CC: ${{ matrix.cc }}
+        run: |
+          mkdir -p .build
+          "$CC" -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer shared/src/atto_mobile_ui_v1.c shared/tests/admission_test.c -o .build/mobile-admission
+          .build/mobile-admission
