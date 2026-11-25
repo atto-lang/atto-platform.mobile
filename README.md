@@ -60,3 +60,11 @@ AttoXP integration PRs: [iOS #16](https://github.com/atto-xp/atto-xp-ios/pull/16
 [Android #15](https://github.com/atto-xp/atto-xp-android/pull/15),
 [conformance #22](https://github.com/atto-xp/atto-xp-conformance/pull/22),
 [docs #10](https://github.com/atto-xp/atto-xp-docs/pull/10).
+
+## Legacy migration provenance and gates
+
+The archived predecessor is [ores-truffle-oreslang/oreslang-platform.mobile](https://github.com/ores-truffle-oreslang/oreslang-platform.mobile). The current AttoLang repository has a separate numeric GitHub ID. Historical `.ores` inputs and CLI/package names are compatibility history; new source uses `.atto`. Native iOS/Android target bindings, device lifecycle constraints and secure device capability tests belong here; do not promise unrestricted background execution or managed cloud operations. Host-only checks do not establish guest parity, AOT, zero-GC or safe production use.
+
+[atto-lang](https://github.com/atto-lang) owns the language, compiler/runtime, targets, libraries and conformance; [atto-co](https://github.com/atto-co) is separately scoped to hosted control planes, deployment, tenancy and billing. Future transfers or carve-outs require owner authorization and security review. Inventory exact SHA/tree, numeric ID, permissions, protections, PRs, releases, packages, dependencies, runners, secrets, applications, webhooks, Pages, deploy keys and rollback ownership; verify preservation and retest consumers after an authorized transfer. Never mirror private code without authorization. Zero-step jobs are NOT_EXECUTED; host-only checks do not establish compiled guest execution or production readiness.
+
+Historical planning: [coordination issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26) and [migration runbook #25](https://github.com/ores-truffle-oreslang/.github/pull/25).
